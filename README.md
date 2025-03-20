@@ -29,7 +29,8 @@ compilers, SIMD support, etc.
 
 This is also a learning process for myself. So, here are the milestones:
 
-- [ ] A basic `Tensor` class implemented in C++ and can accept NumPy array from Python and print back the content.
+- [ ] A basic `Tensor` class implemented in C++ and can accept NumPy array from
+  Python and print back the content.
 - [ ] matmul
 - [ ] matmul backwards
 - [ ] autodiff.
