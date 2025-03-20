@@ -25,6 +25,16 @@ There are many features that we intentionally omitted to keep the codebase
 simple enough to read, which includes GPU support, distributed computing,
 compilers, SIMD support, etc.
 
+## Install
+
+```
+conda install -c conda-forge cxx-compiler
+```
+
+```
+pip install -r requirements.txt
+pip install -e .
+```
 ## Milestones
 
 This is also a learning process for myself. So, here are the milestones:
