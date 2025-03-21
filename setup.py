@@ -5,10 +5,10 @@ import pybind11
 # Define the extension module
 ext_modules = [
     Pybind11Extension(
-        "framework.cpp",  # Corrected: Full path to the module
+        "framework.core",  # Corrected: Full path to the module
         [
-            "framework/cpp/tensor.cpp",
-            "framework/cpp/python_bind.cpp"
+            "framework/core/tensor.cpp",
+            "framework/core/python_bind.cpp"
         ],  # Path to your C++ source file
         include_dirs=[pybind11.get_include()],
     ),
