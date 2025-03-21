@@ -1,15 +1,14 @@
 import setuptools
 from pybind11.setup_helpers import Pybind11Extension
 import pybind11
+import glob
+
 
 # Define the extension module
 ext_modules = [
     Pybind11Extension(
         "framework.core",  # Corrected: Full path to the module
-        [
-            "framework/core/tensor.cpp",
-            "framework/core/python_bind.cpp"
-        ],  # Path to your C++ source file
+        glob.glob("framework/core/**/*.cpp", recursive=True),
         include_dirs=[pybind11.get_include()],
     ),
 ]
