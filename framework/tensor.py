@@ -1,6 +1,6 @@
 import ctypes
 import numpy as np
-from framework._ops import mytensor
+from framework import core
 
 class Tensor:
     def __init__(self, shape, data=None):
@@ -15,7 +15,7 @@ class Tensor:
         """
         self._shape = shape
         if data is None:
-            self._cpp_tensor = mytensor.Tensor(shape)  # Use the constructor that takes only shape
+            self._cpp_tensor = core.Tensor(shape)  # Use the constructor that takes only shape
         else:
             if not isinstance(data, np.ndarray):
                 raise TypeError("Data must be a numpy.ndarray")
@@ -23,7 +23,7 @@ class Tensor:
                 raise ValueError("Data type must be float32")
             if data.shape != tuple(shape):
                 raise ValueError(f"Data shape {data.shape} must match tensor shape {shape}")
-            self._cpp_tensor = mytensor.Tensor(shape, data.flatten().tolist())
+            self._cpp_tensor = core.Tensor(shape, data.flatten().tolist())
 
     @classmethod
     def from_numpy(cls, numpy_array):
