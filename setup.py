@@ -1,5 +1,5 @@
 import setuptools
-from pybind11.setup_helpers import Pybind11Extension, build_ext
+from pybind11.setup_helpers import Pybind11Extension
 import pybind11
 
 # Define the extension module
@@ -14,16 +14,8 @@ ext_modules = [
 
 # Setup function
 setuptools.setup(
-    name="myframework",  # Changed:  Name of the top-level package
-    version="0.0.1",
-    author="Your Name",
-    author_email="your.email@example.com",
-    description="A custom tensor library within a framework",
+    name="readable-ml-framework",  # Changed:  Name of the top-level package
     ext_modules=ext_modules,
-    cmdclass={"build_ext": build_ext},
-    zip_safe=False,
-    install_requires=["pybind11"],
     packages=["framework", "framework._ops"], # Added:  Declare the packages
-    package_dir={"": "."}, # Added:  Map the top-level to the current directory
 )
 
