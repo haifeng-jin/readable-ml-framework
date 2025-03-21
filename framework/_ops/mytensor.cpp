@@ -23,7 +23,7 @@ public:
     }
 
     // Constructor that takes a numpy array data pointer
-    Tensor(const std::vector<size_t>& shape, const std::vector<double>& data_ptr) : shape_(shape) {
+    Tensor(const std::vector<size_t>& shape, const std::vector<float>& data_ptr) : shape_(shape) {
         size_t size = 1;
         for (size_t dim : shape) {
             size *= dim;
@@ -68,7 +68,7 @@ private:
 PYBIND11_MODULE(mytensor, m) {
     py::class_<Tensor>(m, "Tensor")
         .def(py::init<const std::vector<size_t>&>())
-        .def(py::init<const std::vector<size_t>&, const std::vector<double>&>()) // Constructor from data pointer
+        .def(py::init<const std::vector<size_t>&, const std::vector<float>&>()) // Constructor from data pointer
         .def("get_shape", &Tensor::get_shape)
         .def("get_data", &Tensor::get_data);
 }

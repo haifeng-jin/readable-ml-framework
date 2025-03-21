@@ -14,8 +14,6 @@ class Tensor:
                 If provided, the data type must be float32.
         """
         self._shape = shape
-        print(data)
-        print(type(data))
         if data is None:
             self._cpp_tensor = mytensor.Tensor(shape)  # Use the constructor that takes only shape
         else:
