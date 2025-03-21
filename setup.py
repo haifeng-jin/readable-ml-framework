@@ -21,6 +21,7 @@ setuptools.setup(
     packages=[
         "framework",
         "framework.core",
+        "framework.core.tensor",
     ], # Added:  Declare the packages
 )
 
