@@ -65,7 +65,7 @@ private:
 };
 
 // Pybind11 module definition
-PYBIND11_MODULE(mytensor, m) {
+PYBIND11_MODULE(tensor, m) {
     py::class_<Tensor>(m, "Tensor")
         .def(py::init<const std::vector<size_t>&>())
         .def(py::init<const std::vector<size_t>&, const std::vector<float>&>()) // Constructor from data pointer

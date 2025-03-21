@@ -1,1 +1,1 @@
-from framework._ops.mytensor import Tensor
+from framework.core.tensor import Tensor
