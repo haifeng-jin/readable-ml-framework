@@ -50,3 +50,7 @@ py::array_t<float> Tensor::get_data() const {
     std::copy(data_float_.begin(), data_float_.end(), ptr);
     return result;
 }
+
+const std::vector<float>& Tensor::get_data_vector() const {
+    return data_float_;
+}
