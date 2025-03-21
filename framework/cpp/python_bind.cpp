@@ -3,7 +3,7 @@
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(core, m) { // the module name matches the package name.
+PYBIND11_MODULE(cpp, m) { // the module name matches the package name.
     auto tensor_module = m.def_submodule("tensor"); // submodule tensor.
     py::class_<Tensor>(tensor_module, "Tensor")
         .def(py::init<const std::vector<size_t>&>())

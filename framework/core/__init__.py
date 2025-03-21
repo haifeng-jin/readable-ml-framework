@@ -1,1 +1,1 @@
-from framework.core.tensor import Tensor
+from framework.cpp.tensor import Tensor

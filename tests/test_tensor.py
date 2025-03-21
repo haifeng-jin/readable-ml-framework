@@ -1,6 +1,6 @@
 import ctypes
 import numpy as np
-import framework  # Import the module
+import framework # Import the module
 import pytest
 
 def test_create_from_numpy():
