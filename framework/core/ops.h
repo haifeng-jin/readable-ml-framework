@@ -4,5 +4,6 @@
 #include "tensor.h"
 
 Tensor matmul(const Tensor& a, const Tensor& b);
+Tensor add_broadcast_row(const Tensor& a, const Tensor& b);
 
 #endif // OPS_H
