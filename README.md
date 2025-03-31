@@ -46,3 +46,10 @@ This is also a learning process for myself. So, here are the milestones:
 - [ ] autodiff.
 - [ ] more ops.
 - [ ] Solve the MNIST dataset.
+
+## Features not implemented
+
+Asychronous dispatch.
+CUDA backend.
+Compilers.
+Distributed computing.

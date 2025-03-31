@@ -13,17 +13,20 @@ class Tensor:
                 the tensor will be initialized with uninitialized values.
                 If provided, the data type must be float32.
         """
-        self._shape = shape
-        if data is None:
-            self._cpp_tensor = core.Tensor(shape)  # Use the constructor that takes only shape
+        self.shape = tuple(shape)
+        if isinstance(data, np.ndarray):
+            data = core.Tensor(shape, data.flatten().tolist())
+        elif isinstance(data, core.Tensor):
+            pass
+        elif data is None:
+            data = core.Tensor(shape)  # Use the constructor that takes only shape
         else:
-            if not isinstance(data, np.ndarray):
-                raise TypeError("Data must be a numpy.ndarray")
-            if data.dtype != np.float32:
-                raise ValueError("Data type must be float32")
-            if data.shape != tuple(shape):
-                raise ValueError(f"Data shape {data.shape} must match tensor shape {shape}")
-            self._cpp_tensor = core.Tensor(shape, data.flatten().tolist())
+            raise TypeError(f"Expected data to be one of (numpy.ndarray, framework.core.Tensor, None). Received: {data} of type {type(data)}.")
+        self.data = data
+
+    @classmethod
+    def from_data(cls, data):
+        return cls(data.get_shape(), data)
 
     @classmethod
     def from_numpy(cls, numpy_array):
@@ -43,13 +46,9 @@ class Tensor:
         shape = numpy_array.shape
         return cls(shape, numpy_array) # Use the __init__ with data
 
-    def shape(self):
-        """Returns the shape of the tensor."""
-        return self._cpp_tensor.get_shape()
-
     def numpy(self):
         """Returns a copy of the tensor data as a NumPy array."""
-        return self._cpp_tensor.get_data()
+        return self.data.get_data()
 
     def __del__(self):
         """Destructor."""
