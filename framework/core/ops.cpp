@@ -149,3 +149,18 @@ Tensor softmax(const Tensor& tensor) {
 
     return result;
 }
+
+void log_task(size_t start, size_t end, std::vector<float>& data) {
+    for (size_t i = start; i < end; ++i) {
+        data[i] = (data[i] > 0.0f) ? std::log(data[i]) : std::numeric_limits<float>::quiet_NaN();
+    }
+}
+
+Tensor element_wise_log(const Tensor& tensor) {
+    Tensor result(tensor.get_shape());
+    auto& result_data = const_cast<std::vector<float>&>(result.get_data_vector());
+    std::copy(tensor.get_data_vector().begin(), tensor.get_data_vector().end(), result_data.begin());
+
+    parallel_for(result_data.size(), log_task, std::ref(result_data));
+    return result;
+}

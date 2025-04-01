@@ -54,3 +54,14 @@ def test_softmax():
 
     assert result.shape == (2, 2)
     np.testing.assert_allclose(result.numpy(), expected, rtol=1e-5, atol=1e-5)
+
+def test_log():
+    x = np.array([[5.0, 6.0], [7.0, 8.0]], dtype=np.float32)
+
+    tensor = framework.Tensor.from_numpy(x)
+
+    expected = np.log(x)
+    result = framework.ops.log(tensor)
+
+    assert result.shape == (2, 2)
+    np.testing.assert_allclose(result.numpy(), expected, rtol=1e-5, atol=1e-5)

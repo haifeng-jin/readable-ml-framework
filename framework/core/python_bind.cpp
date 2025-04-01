@@ -15,4 +15,5 @@ PYBIND11_MODULE(core, m) { // the module name matches the package name.
     ops_module.def("add_broadcast_row", &add_broadcast_row, "Add (1, n) to (m, n), broadcast by row.");
     ops_module.def("relu", &relu, "The relu op for tensors.");
     ops_module.def("softmax", &softmax, "The softmax op for tensors.");
+    ops_module.def("log", &element_wise_log, "The log op for tensors.");
 }
