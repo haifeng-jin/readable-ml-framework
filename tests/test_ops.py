@@ -39,3 +39,18 @@ def test_relu():
 
     assert result.shape == (2, 2)
     np.testing.assert_array_equal(result.numpy(), expected)
+
+
+def test_softmax():
+    x = np.array([[5.0, 6.0], [7.0, 8.0]], dtype=np.float32)
+
+    tensor = framework.Tensor.from_numpy(x)
+
+    x_shifted = x - np.max(x, axis=1, keepdims=True)
+    exp_x = np.exp(x_shifted)
+    sum_exp_x = np.sum(exp_x, axis=1, keepdims=True)
+    expected = exp_x / sum_exp_x
+    result = framework.ops.softmax(tensor)
+
+    assert result.shape == (2, 2)
+    np.testing.assert_allclose(result.numpy(), expected, rtol=1e-5, atol=1e-5)

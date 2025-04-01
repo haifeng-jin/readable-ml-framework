@@ -165,3 +165,66 @@ Tensor relu(const Tensor& tensor) {
 }
 
 
+// Function to apply Softmax to a subset of rows
+void softmax_thread_task(size_t start_row, size_t end_row, size_t n, std::vector<float>& data) {
+    for (size_t i = start_row; i < end_row; ++i) {
+        size_t row_start = i * n;
+        size_t row_end = row_start + n;
+        float max_val = -std::numeric_limits<float>::infinity();
+
+        // Find the maximum value in the row for numerical stability
+        for (size_t j = row_start; j < row_end; ++j) {
+            if (data[j] > max_val) {
+                max_val = data[j];
+            }
+        }
+
+        float sum_exp = 0.0f;
+        // Calculate the exponential of each element and the sum of exponentials
+        for (size_t j = row_start; j < row_end; ++j) {
+            data[j] = std::exp(data[j] - max_val); // Subtract max_val for stability
+            sum_exp += data[j];
+        }
+
+        // Normalize the row by dividing by the sum of exponentials
+        for (size_t j = row_start; j < row_end; ++j) {
+            data[j] /= sum_exp;
+        }
+    }
+}
+
+Tensor softmax(const Tensor& tensor) {
+    const auto& shape = tensor.get_shape();
+    if (shape.size() != 2) {
+        throw std::runtime_error("Softmax requires a 2D tensor.");
+    }
+    size_t m = shape[0]; // Number of rows
+    size_t n = shape[1]; // Number of columns
+
+    Tensor result(shape);
+    std::vector<float>& result_data = const_cast<std::vector<float>&>(result.get_data_vector());
+    const std::vector<float>& data = tensor.get_data_vector();
+
+    // Copy the data to the result tensor.  Softmax is applied in-place.
+      std::copy(data.begin(), data.end(), result_data.begin());
+
+    size_t num_threads = std::thread::hardware_concurrency();
+    std::vector<std::future<void>> futures;
+
+    size_t rows_per_thread = m / num_threads;
+    size_t remaining_rows = m % num_threads;
+    size_t start_row = 0;
+
+    for (size_t t = 0; t < num_threads; ++t) {
+        size_t num_rows = rows_per_thread + (t < remaining_rows ? 1 : 0);
+        size_t end_row = start_row + num_rows;
+        if (num_rows > 0) {
+          futures.push_back(std::async(std::launch::async, softmax_thread_task, start_row, end_row, n, std::ref(result_data)));
+        }
+        start_row = end_row;
+    }
+     for (auto& future : futures) {
+        future.get();
+    }
+    return result;
+}

@@ -10,3 +10,6 @@ def add(a, b):
 
 def relu(a):
     return tensor.Tensor.from_data(ops.relu(a.data))
+
+def softmax(a):
+    return tensor.Tensor.from_data(ops.softmax(a.data))
