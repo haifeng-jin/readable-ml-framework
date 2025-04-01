@@ -5,5 +5,6 @@
 
 Tensor matmul(const Tensor& a, const Tensor& b);
 Tensor add_broadcast_row(const Tensor& a, const Tensor& b);
+Tensor relu(const Tensor& tensor);
 
 #endif // OPS_H

@@ -119,3 +119,49 @@ Tensor add_broadcast_row(const Tensor& a, const Tensor& b) {
     return result;
 }
 
+
+// Function to apply ReLU to a subset of the tensor
+void relu_thread_task(size_t start_index, size_t end_index, std::vector<float>& data) {
+    for (size_t i = start_index; i < end_index; ++i) {
+        data[i] = std::max(0.0f, data[i]);
+    }
+}
+
+Tensor relu(const Tensor& tensor) {
+    const auto& shape = tensor.get_shape();
+    Tensor result(shape); // Create a new tensor with the same shape
+    std::vector<float>& result_data = const_cast<std::vector<float>&>(result.get_data_vector());
+    const std::vector<float>& data = tensor.get_data_vector();
+
+    size_t num_elements = result_data.size();
+    size_t num_threads = std::thread::hardware_concurrency();
+    std::vector<std::future<void>> futures;
+
+    size_t elements_per_thread = num_elements / num_threads;
+    size_t remaining_elements = num_elements % num_threads;
+    size_t start_index = 0;
+
+    for (size_t t = 0; t < num_threads; ++t) {
+        size_t num_elements_thread = elements_per_thread + (t < remaining_elements ? 1 : 0);
+        size_t end_index = start_index + num_elements_thread;
+
+        if (num_elements_thread > 0) {
+            futures.push_back(std::async(std::launch::async,
+                                         relu_thread_task, start_index, end_index, std::ref(result_data)));
+        }
+        start_index = end_index;
+    }
+
+    for (auto& future : futures) {
+        future.get();
+    }
+
+    // Copy the data from the input tensor to the result tensor
+    std::copy(data.begin(), data.end(), result_data.begin());
+    // Apply relu in place.
+    relu_thread_task(0, num_elements, result_data);
+
+    return result;
+}
+
+

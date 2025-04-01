@@ -27,3 +27,15 @@ def test_add():
 
     assert result.shape == (2, 2)
     np.testing.assert_array_equal(result.numpy(), expected)
+
+
+def test_relu():
+    numpy_array = np.array([[-5.0, 6.0], [7.0, 8.0]], dtype=np.float32)
+
+    tensor = framework.Tensor.from_numpy(numpy_array)
+
+    expected = np.maximum(0, numpy_array)
+    result = framework.ops.relu(tensor)
+
+    assert result.shape == (2, 2)
+    np.testing.assert_array_equal(result.numpy(), expected)
