@@ -20,3 +20,7 @@ def softmax(a):
 
 def log(a):
     return tensor.Tensor.from_data(ops.log(a.data))
+
+
+def sum(a):
+    return tensor.Tensor.from_data(ops.sum(a.data))
