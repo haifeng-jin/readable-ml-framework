@@ -1,5 +1,7 @@
 import numpy as np
-import framework # Import the module
+
+import framework  # Import the module
+
 
 def test_create_from_numpy():
     """Test creating a Tensor from a NumPy array."""

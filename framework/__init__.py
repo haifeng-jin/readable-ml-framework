@@ -1,2 +1,2 @@
-from framework.tensor import Tensor
 from framework import ops
+from framework.tensor import Tensor
