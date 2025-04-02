@@ -9,6 +9,8 @@
 
 namespace py = pybind11;
 
+namespace ops {
+
 template <typename Func, typename... Args>
 void parallel_for(size_t total_work, Func&& func, Args&&... args) {
     size_t num_threads = std::thread::hardware_concurrency();
@@ -65,7 +67,7 @@ Tensor matmul(const Tensor& a, const Tensor& b) {
 }
 
 // Function to perform row-wise addition for a subset of rows
-void add_broadcast_row_task(size_t start_row, size_t end_row, size_t n,
+void add_task(size_t start_row, size_t end_row, size_t n,
                                  const std::vector<float>& a_data, const std::vector<float>& b_data,
                                  std::vector<float>& result_data) {
     for (size_t i = start_row; i < end_row; ++i) {
@@ -75,7 +77,7 @@ void add_broadcast_row_task(size_t start_row, size_t end_row, size_t n,
     }
 }
 
-Tensor add_broadcast_row(const Tensor& a, const Tensor& b) {
+Tensor add(const Tensor& a, const Tensor& b) {
     const auto& a_shape = a.get_shape();
     const auto& b_shape = b.get_shape();
 
@@ -84,7 +86,7 @@ Tensor add_broadcast_row(const Tensor& a, const Tensor& b) {
 
     Tensor result({m, n});
 
-    parallel_for(m, add_broadcast_row_task, n, a.get_data_vector(), b.get_data_vector(),
+    parallel_for(m, add_task, n, a.get_data_vector(), b.get_data_vector(),
                  std::ref(const_cast<std::vector<float>&>(result.get_data_vector())));
 
     return result;
@@ -156,7 +158,7 @@ void log_task(size_t start, size_t end, std::vector<float>& data) {
     }
 }
 
-Tensor element_wise_log(const Tensor& tensor) {
+Tensor log(const Tensor& tensor) {
     Tensor result(tensor.get_shape());
     auto& result_data = const_cast<std::vector<float>&>(result.get_data_vector());
     std::copy(tensor.get_data_vector().begin(), tensor.get_data_vector().end(), result_data.begin());
@@ -164,3 +166,5 @@ Tensor element_wise_log(const Tensor& tensor) {
     parallel_for(result_data.size(), log_task, std::ref(result_data));
     return result;
 }
+
+};

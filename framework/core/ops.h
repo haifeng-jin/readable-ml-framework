@@ -3,10 +3,12 @@
 #define OPS_H
 #include "tensor.h"
 
+namespace ops {
 Tensor matmul(const Tensor& a, const Tensor& b);
-Tensor add_broadcast_row(const Tensor& a, const Tensor& b);
+Tensor add(const Tensor& a, const Tensor& b);
 Tensor relu(const Tensor& tensor);
 Tensor softmax(const Tensor& tensor);
-Tensor element_wise_log(const Tensor& tensor);
+Tensor log(const Tensor& tensor);
+};
 
 #endif // OPS_H
