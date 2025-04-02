@@ -19,4 +19,5 @@ PYBIND11_MODULE(core, m) { // the module name matches the package name.
     ops_module.def("relu", &ops::relu, "The relu op for tensors.");
     ops_module.def("softmax", &ops::softmax, "The softmax op for tensors.");
     ops_module.def("log", &ops::log, "The log op for tensors.");
+    ops_module.def("sum", &ops::sum, "The sum op for tensors.");
 }
