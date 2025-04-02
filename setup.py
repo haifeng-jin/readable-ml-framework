@@ -1,8 +1,8 @@
-import setuptools
-from pybind11.setup_helpers import Pybind11Extension
-import pybind11
 import glob
 
+import pybind11
+import setuptools
+from pybind11.setup_helpers import Pybind11Extension
 
 # Define the extension module
 ext_modules = [
@@ -17,6 +17,5 @@ ext_modules = [
 setuptools.setup(
     name="readable-ml-framework",  # Changed:  Name of the top-level package
     ext_modules=ext_modules,
-    packages=setuptools.find_packages(), # Added:  Declare the packages
+    packages=setuptools.find_packages(),  # Added:  Declare the packages
 )
-

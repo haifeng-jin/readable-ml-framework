@@ -1,6 +1,7 @@
-import ctypes
 import numpy as np
+
 from framework import core
+
 
 class Tensor:
     def __init__(self, shape, data=None):
@@ -9,8 +10,8 @@ class Tensor:
 
         Args:
             shape (list or tuple): The shape of the tensor.
-            data (numpy.ndarray, optional): Initial data for the tensor. If None,
-                the tensor will be initialized with uninitialized values.
+            data (numpy.ndarray, optional): Initial data for the tensor. If
+                None, the tensor will be initialized with uninitialized values.
                 If provided, the data type must be float32.
         """
         self.shape = tuple(shape)
@@ -19,9 +20,15 @@ class Tensor:
         elif isinstance(data, core.Tensor):
             pass
         elif data is None:
-            data = core.Tensor(shape)  # Use the constructor that takes only shape
+            data = core.Tensor(
+                shape
+            )  # Use the constructor that takes only shape
         else:
-            raise TypeError(f"Expected data to be one of (numpy.ndarray, framework.core.Tensor, None). Received: {data} of type {type(data)}.")
+            raise TypeError(
+                "Expected data to be one of (numpy.ndarray, "
+                "framework.core.Tensor, None). "
+                f"Received: {data} of type {type(data)}."
+            )
         self.data = data
 
     @classmethod
@@ -34,7 +41,8 @@ class Tensor:
         Creates a Tensor from a NumPy array.
 
         Args:
-            numpy_array (numpy.ndarray): The NumPy array.  The data type must be float32.
+            numpy_array (numpy.ndarray): The NumPy array. The data type must
+                be float32.
 
         Returns:
             Tensor: A new Tensor object.
@@ -44,7 +52,7 @@ class Tensor:
         if numpy_array.dtype != np.float32:
             raise ValueError("Data type must be float32")
         shape = numpy_array.shape
-        return cls(shape, numpy_array) # Use the __init__ with data
+        return cls(shape, numpy_array)  # Use the __init__ with data
 
     def numpy(self):
         """Returns a copy of the tensor data as a NumPy array."""
@@ -53,4 +61,3 @@ class Tensor:
     def __del__(self):
         """Destructor."""
         pass  # The C++ destructor handles memory management
-

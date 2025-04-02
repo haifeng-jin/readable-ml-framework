@@ -1,5 +1,7 @@
 import numpy as np
+
 import framework
+
 
 def test_matmul():
     numpy_array1 = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
@@ -54,6 +56,7 @@ def test_softmax():
 
     assert result.shape == (2, 2)
     np.testing.assert_allclose(result.numpy(), expected, rtol=1e-5, atol=1e-5)
+
 
 def test_log():
     x = np.array([[5.0, 6.0], [7.0, 8.0]], dtype=np.float32)

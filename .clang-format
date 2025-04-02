@@ -1,0 +1,4 @@
+# Based on a common style (e.g., LLVM, Google, Chromium)
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab: Never

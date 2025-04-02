@@ -28,7 +28,7 @@ compilers, SIMD support, etc.
 ## Install
 
 ```
-conda install -c conda-forge cxx-compiler
+conda install -c conda-forge cxx-compiler clang-format
 ```
 
 ```

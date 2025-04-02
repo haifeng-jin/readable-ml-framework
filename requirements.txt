@@ -1,3 +1,6 @@
 pybind11
 numpy
 pytest
+flake8
+isort
+black

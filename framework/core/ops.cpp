@@ -1,18 +1,18 @@
 #include "ops.h"
 #include <algorithm>
-#include <vector>
-#include <thread>
-#include <future>
-#include <numeric>
 #include <cmath>
+#include <future>
 #include <limits>
+#include <numeric>
+#include <thread>
+#include <vector>
 
 namespace py = pybind11;
 
 namespace ops {
 
 template <typename Func, typename... Args>
-void parallel_for(size_t total_work, Func&& func, Args&&... args) {
+void parallel_for(size_t total_work, Func &&func, Args &&...args) {
     size_t num_threads = std::thread::hardware_concurrency();
     std::vector<std::future<void>> futures;
 
@@ -25,21 +25,22 @@ void parallel_for(size_t total_work, Func&& func, Args&&... args) {
         size_t end = start + work;
 
         if (work > 0) {
-            futures.push_back(std::async(std::launch::async, func, start, end, std::forward<Args>(args)...));
+            futures.push_back(std::async(std::launch::async, func, start, end,
+                                         std::forward<Args>(args)...));
         }
         start = end;
     }
 
-    for (auto& future : futures) {
+    for (auto &future : futures) {
         future.get();
     }
 }
 
-
 // Function to perform matrix multiplication for a subset of rows
 void matmul_task(size_t start_row, size_t end_row, size_t m, size_t n, size_t k,
-                      const std::vector<float>& a_data, const std::vector<float>& b_data,
-                      std::vector<float>& result_data) {
+                 const std::vector<float> &a_data,
+                 const std::vector<float> &b_data,
+                 std::vector<float> &result_data) {
     for (size_t i = start_row; i < end_row; ++i) {
         for (size_t j = 0; j < n; ++j) {
             float sum = 0.0f;
@@ -51,25 +52,27 @@ void matmul_task(size_t start_row, size_t end_row, size_t m, size_t n, size_t k,
     }
 }
 
-Tensor matmul(const Tensor& a, const Tensor& b) {
-    const auto& a_shape = a.get_shape();
-    const auto& b_shape = b.get_shape();
+Tensor matmul(const Tensor &a, const Tensor &b) {
+    const auto &a_shape = a.get_shape();
+    const auto &b_shape = b.get_shape();
 
     size_t m = a_shape[0];
     size_t k = a_shape[1];
     size_t n = b_shape[1];
 
     Tensor result({m, n});
-    parallel_for(m, matmul_task, m, n, k, a.get_data_vector(), b.get_data_vector(),
-                 std::ref(const_cast<std::vector<float>&>(result.get_data_vector())));
+    parallel_for(
+        m, matmul_task, m, n, k, a.get_data_vector(), b.get_data_vector(),
+        std::ref(const_cast<std::vector<float> &>(result.get_data_vector())));
 
     return result;
 }
 
 // Function to perform row-wise addition for a subset of rows
 void add_task(size_t start_row, size_t end_row, size_t n,
-                                 const std::vector<float>& a_data, const std::vector<float>& b_data,
-                                 std::vector<float>& result_data) {
+              const std::vector<float> &a_data,
+              const std::vector<float> &b_data,
+              std::vector<float> &result_data) {
     for (size_t i = start_row; i < end_row; ++i) {
         for (size_t j = 0; j < n; ++j) {
             result_data[i * n + j] = a_data[i * n + j] + b_data[j];
@@ -77,41 +80,43 @@ void add_task(size_t start_row, size_t end_row, size_t n,
     }
 }
 
-Tensor add(const Tensor& a, const Tensor& b) {
-    const auto& a_shape = a.get_shape();
-    const auto& b_shape = b.get_shape();
+Tensor add(const Tensor &a, const Tensor &b) {
+    const auto &a_shape = a.get_shape();
+    const auto &b_shape = b.get_shape();
 
     size_t m = a_shape[0];
     size_t n = a_shape[1];
 
     Tensor result({m, n});
 
-    parallel_for(m, add_task, n, a.get_data_vector(), b.get_data_vector(),
-                 std::ref(const_cast<std::vector<float>&>(result.get_data_vector())));
+    parallel_for(
+        m, add_task, n, a.get_data_vector(), b.get_data_vector(),
+        std::ref(const_cast<std::vector<float> &>(result.get_data_vector())));
 
     return result;
 }
 
-
 // Function to apply ReLU to a subset of the tensor
-void relu_task(size_t start_index, size_t end_index, std::vector<float>& data) {
+void relu_task(size_t start_index, size_t end_index, std::vector<float> &data) {
     for (size_t i = start_index; i < end_index; ++i) {
         data[i] = std::max(0.0f, data[i]);
     }
 }
 
-Tensor relu(const Tensor& tensor) {
+Tensor relu(const Tensor &tensor) {
     Tensor result(tensor.get_shape());
-    auto& result_data = const_cast<std::vector<float>&>(result.get_data_vector());
-    std::copy(tensor.get_data_vector().begin(), tensor.get_data_vector().end(), result_data.begin());
+    auto &result_data =
+        const_cast<std::vector<float> &>(result.get_data_vector());
+    std::copy(tensor.get_data_vector().begin(), tensor.get_data_vector().end(),
+              result_data.begin());
 
     parallel_for(result_data.size(), relu_task, std::ref(result_data));
     return result;
 }
 
-
 // Function to apply Softmax to a subset of rows
-void softmax_task(size_t start_row, size_t end_row, size_t n, std::vector<float>& data) {
+void softmax_task(size_t start_row, size_t end_row, size_t n,
+                  std::vector<float> &data) {
     for (size_t i = start_row; i < end_row; ++i) {
         size_t row_start = i * n;
         size_t row_end = row_start + n;
@@ -127,7 +132,8 @@ void softmax_task(size_t start_row, size_t end_row, size_t n, std::vector<float>
         float sum_exp = 0.0f;
         // Calculate the exponential of each element and the sum of exponentials
         for (size_t j = row_start; j < row_end; ++j) {
-            data[j] = std::exp(data[j] - max_val); // Subtract max_val for stability
+            data[j] =
+                std::exp(data[j] - max_val); // Subtract max_val for stability
             sum_exp += data[j];
         }
 
@@ -138,33 +144,38 @@ void softmax_task(size_t start_row, size_t end_row, size_t n, std::vector<float>
     }
 }
 
-Tensor softmax(const Tensor& tensor) {
-    const auto& shape = tensor.get_shape();
+Tensor softmax(const Tensor &tensor) {
+    const auto &shape = tensor.get_shape();
     size_t m = shape[0]; // Number of rows
     size_t n = shape[1]; // Number of columns
 
     Tensor result(shape);
-    auto& result_data = const_cast<std::vector<float>&>(result.get_data_vector());
-    std::copy(tensor.get_data_vector().begin(), tensor.get_data_vector().end(), result_data.begin());
+    auto &result_data =
+        const_cast<std::vector<float> &>(result.get_data_vector());
+    std::copy(tensor.get_data_vector().begin(), tensor.get_data_vector().end(),
+              result_data.begin());
 
     parallel_for(m, softmax_task, n, std::ref(result_data));
 
     return result;
 }
 
-void log_task(size_t start, size_t end, std::vector<float>& data) {
+void log_task(size_t start, size_t end, std::vector<float> &data) {
     for (size_t i = start; i < end; ++i) {
-        data[i] = (data[i] > 0.0f) ? std::log(data[i]) : std::numeric_limits<float>::quiet_NaN();
+        data[i] = (data[i] > 0.0f) ? std::log(data[i])
+                                   : std::numeric_limits<float>::quiet_NaN();
     }
 }
 
-Tensor log(const Tensor& tensor) {
+Tensor log(const Tensor &tensor) {
     Tensor result(tensor.get_shape());
-    auto& result_data = const_cast<std::vector<float>&>(result.get_data_vector());
-    std::copy(tensor.get_data_vector().begin(), tensor.get_data_vector().end(), result_data.begin());
+    auto &result_data =
+        const_cast<std::vector<float> &>(result.get_data_vector());
+    std::copy(tensor.get_data_vector().begin(), tensor.get_data_vector().end(),
+              result_data.begin());
 
     parallel_for(result_data.size(), log_task, std::ref(result_data));
     return result;
 }
 
-};
+}; // namespace ops
