@@ -102,6 +102,28 @@ Tensor add(const Tensor &a, const Tensor &b) {
     return result;
 }
 
+// Function to perform element-wise multiply for a subset of rows
+float multiply_task(size_t start, size_t end, std::vector<float> &result_data,
+                    const std::vector<float> &b_data) {
+    for (size_t i = start; i < end; ++i) {
+        result_data[i] *= b_data[i];
+    }
+    return 0.0f;
+}
+
+Tensor multiply(const Tensor &a, const Tensor &b) {
+    Tensor result(a.get_shape());
+    auto &result_data =
+        const_cast<std::vector<float> &>(result.get_data_vector());
+    std::copy(a.get_data_vector().begin(), a.get_data_vector().end(),
+              result_data.begin());
+
+    parallel_for(result_data.size(), multiply_task, std::ref(result_data),
+                 std::ref(b.get_data_vector()));
+
+    return result;
+}
+
 // Function to apply ReLU to a subset of the tensor
 float relu_task(size_t start_index, size_t end_index,
                 std::vector<float> &data) {
@@ -171,8 +193,7 @@ Tensor softmax(const Tensor &tensor) {
 
 float log_task(size_t start, size_t end, std::vector<float> &data) {
     for (size_t i = start; i < end; ++i) {
-        data[i] = (data[i] > 0.0f) ? std::log(data[i])
-                                   : std::numeric_limits<float>::quiet_NaN();
+        data[i] = (data[i] > 1e-8) ? std::log(data[i]) : std::log(1e-8);
     }
     return 0.0f;
 }

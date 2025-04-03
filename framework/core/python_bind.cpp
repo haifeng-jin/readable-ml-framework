@@ -13,11 +13,13 @@ PYBIND11_MODULE(core, m) { // the module name matches the package name.
         .def("get_data", &Tensor::get_data);
     auto ops_module = m.def_submodule("ops"); // ops submodule is still present.
     ops_module.def("matmul", &ops::matmul,
-                   "Matrix multiplication of two tensors.");
-    ops_module.def("add_broadcast_row", &ops::add,
-                   "Add (1, n) to (m, n), broadcast by row.");
+                   "Matrix multiplication of two 2-d tensors.");
+    ops_module.def("add", &ops::add, "Add (1, n) to (m, n), broadcast by row.");
+    ops_module.def("multiply", &ops::multiply,
+                   "Element-wise multiply for a tensor.");
     ops_module.def("relu", &ops::relu, "The relu op for tensors.");
-    ops_module.def("softmax", &ops::softmax, "The softmax op for tensors.");
-    ops_module.def("log", &ops::log, "The log op for tensors.");
-    ops_module.def("sum", &ops::sum, "The sum op for tensors.");
+    ops_module.def("softmax", &ops::softmax,
+                   "The softmax op row-wise for a 2d tensor.");
+    ops_module.def("log", &ops::log, "The element-wise log op for tensors.");
+    ops_module.def("sum", &ops::sum, "The sum all the elements in a tensor.");
 }
