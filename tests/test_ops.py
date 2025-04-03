@@ -152,7 +152,7 @@ def test_mlp_forward_with_loss():
 
     result = ops.multiply(
         ops.sum(ops.multiply(y, ops.log(output_probabilities))),
-        -1.0 / batch_size,
+        framework.Tensor.from_numpy(np.full(y.shape, -1.0 / batch_size, dtype=np.float32)),
     )
 
     assert result.shape == (1,)
