@@ -1,12 +1,13 @@
-import numpy as np
-
 from framework import tensor
 from framework.core import ops
 
 # wrap the ops so that we can add the tracing later.
 
+
 def matmul(a, b):
-    return tensor.Tensor.from_data(ops.matmul(a.data, b.data))
+    result = tensor.Tensor(shape=(a.shape[0], b.shape[1]))
+    ops.matmul(a.data, b.data, result.data)
+    return result
 
 
 def add(a, b):

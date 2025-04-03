@@ -4,7 +4,7 @@
 #include "tensor.h"
 
 namespace ops {
-Tensor matmul(const Tensor& a, const Tensor& b);
+void matmul(const Tensor &a, const Tensor &b, Tensor &result);
 Tensor add(const Tensor& a, const Tensor& b);
 Tensor relu(const Tensor& tensor);
 Tensor softmax(const Tensor& tensor);

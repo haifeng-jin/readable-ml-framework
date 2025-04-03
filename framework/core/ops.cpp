@@ -57,7 +57,7 @@ float matmul_task(size_t start_row, size_t end_row, size_t m, size_t n,
     return 0.0f;
 }
 
-Tensor matmul(const Tensor &a, const Tensor &b) {
+void matmul(const Tensor &a, const Tensor &b, Tensor &result) {
     const auto &a_shape = a.get_shape();
     const auto &b_shape = b.get_shape();
 
@@ -65,12 +65,9 @@ Tensor matmul(const Tensor &a, const Tensor &b) {
     size_t k = a_shape[1];
     size_t n = b_shape[1];
 
-    Tensor result({m, n});
     parallel_for(
         m, matmul_task, m, n, k, a.get_data_vector(), b.get_data_vector(),
         std::ref(const_cast<std::vector<float> &>(result.get_data_vector())));
-
-    return result;
 }
 
 // Function to perform row-wise addition for a subset of rows
