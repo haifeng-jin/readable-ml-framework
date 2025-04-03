@@ -50,7 +50,9 @@ class Tensor:
         if not isinstance(numpy_array, np.ndarray):
             raise TypeError("Input must be a numpy.ndarray")
         if numpy_array.dtype != np.float32:
-            raise ValueError(f"Data type must be np.float32, but got {numpy_array.dtype}.")
+            raise ValueError(
+                f"Data type must be np.float32, but got {numpy_array.dtype}."
+            )
         shape = numpy_array.shape
         return cls(shape, numpy_array)  # Use the __init__ with data
 

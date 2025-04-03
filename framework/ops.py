@@ -1,3 +1,5 @@
+import numpy as np
+
 from framework import tensor
 from framework.core import ops
 
@@ -7,7 +9,13 @@ def matmul(a, b):
 
 
 def add(a, b):
-    return tensor.Tensor.from_data(ops.add_broadcast_row(a.data, b.data))
+    return tensor.Tensor.from_data(ops.add(a.data, b.data))
+
+
+def multiply(a, b):
+    if isinstance(b, float):
+        b = tensor.Tensor.from_numpy(np.full(a.shape, b, dtype=np.float32))
+    return tensor.Tensor.from_data(ops.multiply(a.data, b.data))
 
 
 def relu(a):
