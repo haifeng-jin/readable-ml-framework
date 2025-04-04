@@ -21,4 +21,5 @@ PYBIND11_MODULE(core, m) { // the module name matches the package name.
                    "The softmax op row-wise for a 2d tensor.");
     ops_module.def("log", &ops::log, "The element-wise log op for tensors.");
     ops_module.def("sum", &ops::sum, "The sum all the elements in a tensor.");
+    ops_module.def("sum_backward", &ops::sum_backward, "sum backward");
 }

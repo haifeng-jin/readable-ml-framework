@@ -98,6 +98,22 @@ def test_sum():
     np.testing.assert_allclose(result.numpy(), expected, rtol=1e-5, atol=1e-5)
 
 
+def test_sum_backward():
+    x = np.array([[5.0, 6.0], [7.0, 8.0]], dtype=np.float32)
+    grad = np.array([2.0], dtype=np.float32)
+
+    tensor = framework.Tensor.from_numpy(x)
+    output_grad = framework.Tensor.from_numpy(grad)
+
+    expected = np.full(x.shape, grad[0], dtype=np.float32)
+    input_grad = framework.ops.sum_backward(output_grad, tensor)
+
+    assert input_grad.shape == x.shape
+    np.testing.assert_allclose(
+        input_grad.numpy(), expected, rtol=1e-5, atol=1e-5
+    )
+
+
 def test_mlp_forward_with_loss():
     # Constants
     input_size = 20

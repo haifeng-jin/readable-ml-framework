@@ -40,60 +40,60 @@ void parallel_for(size_t total_work, Func &&func, Args &&...args) {
 void matmul_task(size_t start_row, size_t end_row, size_t m, size_t n, size_t k,
                  const std::vector<float> &a_data,
                  const std::vector<float> &b_data,
-                 std::vector<float> &result_data) {
+                 std::vector<float> &output_data) {
     for (size_t i = start_row; i < end_row; ++i) {
         for (size_t j = 0; j < n; ++j) {
             float sum = 0.0f;
             for (size_t l = 0; l < k; ++l) {
                 sum += a_data[i * k + l] * b_data[l * n + j];
             }
-            result_data[i * n + j] = sum;
+            output_data[i * n + j] = sum;
         }
     }
 }
 
-void matmul(const Tensor &a, const Tensor &b, Tensor &result) {
+void matmul(const Tensor &a, const Tensor &b, Tensor &output) {
     size_t m = a.shape[0];
     size_t k = a.shape[1];
     size_t n = b.shape[1];
 
     parallel_for(m, matmul_task, m, n, k, std::ref(a.data), std::ref(b.data),
-                 std::ref(result.data));
+                 std::ref(output.data));
 }
 
 // Function to perform row-wise addition for a subset of rows
 void add_task(size_t start_row, size_t end_row, size_t n,
               const std::vector<float> &a_data,
               const std::vector<float> &b_data,
-              std::vector<float> &result_data) {
+              std::vector<float> &output_data) {
     for (size_t i = start_row; i < end_row; ++i) {
         for (size_t j = 0; j < n; ++j) {
-            result_data[i * n + j] = a_data[i * n + j] + b_data[j];
+            output_data[i * n + j] = a_data[i * n + j] + b_data[j];
         }
     }
 }
 
-void add(const Tensor &a, const Tensor &b, Tensor &result) {
+void add(const Tensor &a, const Tensor &b, Tensor &output) {
     size_t m = a.shape[0];
     size_t n = a.shape[1];
 
     parallel_for(m, add_task, n, std::ref(a.data), std::ref(b.data),
-                 std::ref(result.data));
+                 std::ref(output.data));
 }
 
 // Function to perform element-wise multiply for a subset of rows
 void multiply_task(size_t start, size_t end, const std::vector<float> &b_data,
-                   std::vector<float> &result_data) {
+                   std::vector<float> &output_data) {
     for (size_t i = start; i < end; ++i) {
-        result_data[i] *= b_data[i];
+        output_data[i] *= b_data[i];
     }
 }
 
-void multiply(const Tensor &a, const Tensor &b, Tensor &result) {
-    std::copy(a.data.begin(), a.data.end(), result.data.begin());
+void multiply(const Tensor &a, const Tensor &b, Tensor &output) {
+    std::copy(a.data.begin(), a.data.end(), output.data.begin());
 
-    parallel_for(result.data.size(), multiply_task, std::ref(b.data),
-                 std::ref(result.data));
+    parallel_for(output.data.size(), multiply_task, std::ref(b.data),
+                 std::ref(output.data));
 }
 
 // Function to apply ReLU to a subset of the tensor
@@ -103,10 +103,10 @@ void relu_task(size_t start_index, size_t end_index, std::vector<float> &data) {
     }
 }
 
-void relu(const Tensor &tensor, Tensor &result) {
-    std::copy(tensor.data.begin(), tensor.data.end(), result.data.begin());
+void relu(const Tensor &tensor, Tensor &output) {
+    std::copy(tensor.data.begin(), tensor.data.end(), output.data.begin());
 
-    parallel_for(result.data.size(), relu_task, std::ref(result.data));
+    parallel_for(output.data.size(), relu_task, std::ref(output.data));
 }
 
 // Function to apply Softmax to a subset of rows
@@ -139,13 +139,13 @@ void softmax_task(size_t start_row, size_t end_row, size_t n,
     }
 }
 
-void softmax(const Tensor &tensor, Tensor &result) {
+void softmax(const Tensor &tensor, Tensor &output) {
     size_t m = tensor.shape[0]; // Number of rows
     size_t n = tensor.shape[1]; // Number of columns
 
-    std::copy(tensor.data.begin(), tensor.data.end(), result.data.begin());
+    std::copy(tensor.data.begin(), tensor.data.end(), output.data.begin());
 
-    parallel_for(m, softmax_task, n, std::ref(result.data));
+    parallel_for(m, softmax_task, n, std::ref(output.data));
 }
 
 void log_task(size_t start, size_t end, std::vector<float> &data) {
@@ -154,28 +154,42 @@ void log_task(size_t start, size_t end, std::vector<float> &data) {
     }
 }
 
-void log(const Tensor &tensor, Tensor &result) {
-    std::copy(tensor.data.begin(), tensor.data.end(), result.data.begin());
+void log(const Tensor &tensor, Tensor &output) {
+    std::copy(tensor.data.begin(), tensor.data.end(), output.data.begin());
 
-    parallel_for(result.data.size(), log_task, std::ref(result.data));
+    parallel_for(output.data.size(), log_task, std::ref(output.data));
 }
 
 // Function to calculate the sum of a subset of the tensor elements
 void sum_task(size_t start_row, size_t end_row, size_t n,
-              const std::vector<float> &data, std::vector<float> &result_data) {
+              const std::vector<float> &data, std::vector<float> &output_data) {
     for (size_t i = start_row; i < end_row; ++i) {
-        result_data[i] = 0.0f;
+        output_data[i] = 0.0f;
         for (size_t j = 0; j < n; ++j) {
-            result_data[i] += data[i * n + j];
+            output_data[i] += data[i * n + j];
         }
     }
 }
 
-void sum(const Tensor &tensor, Tensor &result) {
-    std::vector<float> results(tensor.shape[0]);
+void sum(const Tensor &tensor, Tensor &output) {
+    std::vector<float> partial_sum(tensor.shape[0]);
     parallel_for(tensor.shape[0], sum_task, tensor.shape[1],
-                 std::ref(tensor.data), std::ref(results));
-    result.data[0] = std::accumulate(results.begin(), results.end(), 0.0f);
+                 std::ref(tensor.data), std::ref(partial_sum));
+    output.data[0] =
+        std::accumulate(partial_sum.begin(), partial_sum.end(), 0.0f);
+}
+
+void sum_backward_task(size_t start, size_t end, float value,
+                       std::vector<float> &input_grad_data) {
+    for (size_t i = start; i < end; i++) {
+        input_grad_data[i] = value;
+    }
+}
+
+void sum_backward(const Tensor &output_grad, const Tensor &tensor,
+                  Tensor &input_grad) {
+    parallel_for(tensor.data.size(), sum_backward_task, output_grad.data[0],
+                 std::ref(input_grad.data));
 }
 
 }; // namespace ops

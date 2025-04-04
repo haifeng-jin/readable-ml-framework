@@ -44,3 +44,9 @@ def sum(a):
     result = tensor.Tensor(shape=(1,))
     ops.sum(a.data, result.data)
     return result
+
+
+def sum_backward(output_grad, a):
+    input_grad = tensor.Tensor(shape=a.shape)
+    ops.sum_backward(output_grad.data, a.data, input_grad.data)
+    return input_grad
