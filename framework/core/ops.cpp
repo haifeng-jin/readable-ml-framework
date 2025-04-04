@@ -83,20 +83,16 @@ float add_task(size_t start_row, size_t end_row, size_t n,
     return 0.0f;
 }
 
-Tensor add(const Tensor &a, const Tensor &b) {
+void add(const Tensor &a, const Tensor &b, Tensor &result) {
     const auto &a_shape = a.get_shape();
     const auto &b_shape = b.get_shape();
 
     size_t m = a_shape[0];
     size_t n = a_shape[1];
 
-    Tensor result({m, n});
-
     parallel_for(
         m, add_task, n, a.get_data_vector(), b.get_data_vector(),
         std::ref(const_cast<std::vector<float> &>(result.get_data_vector())));
-
-    return result;
 }
 
 // Function to perform element-wise multiply for a subset of rows
@@ -108,8 +104,7 @@ float multiply_task(size_t start, size_t end, std::vector<float> &result_data,
     return 0.0f;
 }
 
-Tensor multiply(const Tensor &a, const Tensor &b) {
-    Tensor result(a.get_shape());
+void multiply(const Tensor &a, const Tensor &b, Tensor &result) {
     auto &result_data =
         const_cast<std::vector<float> &>(result.get_data_vector());
     std::copy(a.get_data_vector().begin(), a.get_data_vector().end(),
@@ -117,8 +112,6 @@ Tensor multiply(const Tensor &a, const Tensor &b) {
 
     parallel_for(result_data.size(), multiply_task, std::ref(result_data),
                  std::ref(b.get_data_vector()));
-
-    return result;
 }
 
 // Function to apply ReLU to a subset of the tensor
@@ -130,15 +123,13 @@ float relu_task(size_t start_index, size_t end_index,
     return 0.0f;
 }
 
-Tensor relu(const Tensor &tensor) {
-    Tensor result(tensor.get_shape());
+void relu(const Tensor &tensor, Tensor &result) {
     auto &result_data =
         const_cast<std::vector<float> &>(result.get_data_vector());
     std::copy(tensor.get_data_vector().begin(), tensor.get_data_vector().end(),
               result_data.begin());
 
     parallel_for(result_data.size(), relu_task, std::ref(result_data));
-    return result;
 }
 
 // Function to apply Softmax to a subset of rows
@@ -172,20 +163,17 @@ float softmax_task(size_t start_row, size_t end_row, size_t n,
     return 0.0f;
 }
 
-Tensor softmax(const Tensor &tensor) {
+void softmax(const Tensor &tensor, Tensor &result) {
     const auto &shape = tensor.get_shape();
     size_t m = shape[0]; // Number of rows
     size_t n = shape[1]; // Number of columns
 
-    Tensor result(shape);
     auto &result_data =
         const_cast<std::vector<float> &>(result.get_data_vector());
     std::copy(tensor.get_data_vector().begin(), tensor.get_data_vector().end(),
               result_data.begin());
 
     parallel_for(m, softmax_task, n, std::ref(result_data));
-
-    return result;
 }
 
 float log_task(size_t start, size_t end, std::vector<float> &data) {
@@ -195,15 +183,13 @@ float log_task(size_t start, size_t end, std::vector<float> &data) {
     return 0.0f;
 }
 
-Tensor log(const Tensor &tensor) {
-    Tensor result(tensor.get_shape());
+void log(const Tensor &tensor, Tensor &result) {
     auto &result_data =
         const_cast<std::vector<float> &>(result.get_data_vector());
     std::copy(tensor.get_data_vector().begin(), tensor.get_data_vector().end(),
               result_data.begin());
 
     parallel_for(result_data.size(), log_task, std::ref(result_data));
-    return result;
 }
 
 // Function to calculate the sum of a subset of the tensor elements
@@ -215,12 +201,12 @@ float sum_task(size_t start, size_t end, const std::vector<float> &data) {
     return sum;
 }
 
-Tensor sum(const Tensor &tensor) {
+void sum(const Tensor &tensor, Tensor &result) {
     auto results = parallel_for(tensor.get_data_vector().size(), sum_task,
                                 std::ref(tensor.get_data_vector()));
-    return Tensor(std::vector<size_t>({1}),
-                  std::vector<float>(
-                      {std::accumulate(results.begin(), results.end(), 0.0f)}));
+    auto &result_data =
+        const_cast<std::vector<float> &>(result.get_data_vector());
+    result_data[0] = std::accumulate(results.begin(), results.end(), 0.0f);
 }
 
 }; // namespace ops
