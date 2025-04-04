@@ -33,7 +33,7 @@ class Tensor:
 
     @classmethod
     def from_data(cls, data):
-        return cls(data.get_shape(), data)
+        return cls(data.shape, data)
 
     @classmethod
     def from_numpy(cls, numpy_array):
@@ -58,7 +58,7 @@ class Tensor:
 
     def numpy(self):
         """Returns a copy of the tensor data as a NumPy array."""
-        return self.data.get_data()
+        return self.data.copy_to_numpy()
 
     def __del__(self):
         """Destructor."""

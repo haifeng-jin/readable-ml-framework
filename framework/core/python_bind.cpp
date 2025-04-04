@@ -9,8 +9,7 @@ PYBIND11_MODULE(core, m) { // the module name matches the package name.
         .def(py::init<const std::vector<size_t> &>())
         .def(
             py::init<const std::vector<size_t> &, const std::vector<float> &>())
-        .def("get_shape", &Tensor::get_shape)
-        .def("get_data", &Tensor::get_data);
+        .def("copy_to_numpy", &Tensor::copy_to_numpy);
     auto ops_module = m.def_submodule("ops"); // ops submodule is still present.
     ops_module.def("matmul", &ops::matmul,
                    "Matrix multiplication of two 2-d tensors.");
