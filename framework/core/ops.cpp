@@ -86,14 +86,14 @@ void matmul_backward(const Tensor &output_grad, const Tensor &a,
 }
 
 // Function to perform add backward pass for a subset of columns
-void add_backward_task_b(size_t start_col, size_t end_col, size_t m,
+void add_backward_task_b(size_t start_col, size_t end_col, size_t m, size_t n,
                          const std::vector<float> &output_grad_data,
                          std::vector<float> &b_grad_data) {
     // For b_grad, we need to sum the gradients across all rows for each column
     for (size_t j = start_col; j < end_col; ++j) {
         float sum = 0.0f;
         for (size_t i = 0; i < m; ++i) {
-            sum += output_grad_data[i * end_col + j];
+            sum += output_grad_data[i * n + j];
         }
         b_grad_data[j] = sum;
     }
@@ -109,7 +109,7 @@ void add_backward(const Tensor &output_grad, const Tensor &a, const Tensor &b,
               a_grad.data.begin());
 
     // For b_grad, sum the gradients across each column
-    parallel_for(n, add_backward_task_b, m, std::ref(output_grad.data),
+    parallel_for(n, add_backward_task_b, m, n, std::ref(output_grad.data),
                  std::ref(b_grad.data));
 }
 
