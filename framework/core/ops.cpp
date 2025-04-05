@@ -36,6 +36,188 @@ void parallel_for(size_t total_work, Func &&func, Args &&...args) {
     }
 }
 
+// Function to perform matrix multiplication backward pass for a subset of rows
+void matmul_backward_task_a(size_t start_row, size_t end_row, size_t m,
+                            size_t n, size_t k,
+                            const std::vector<float> &output_grad_data,
+                            const std::vector<float> &b_data,
+                            std::vector<float> &a_grad_data) {
+    // Computing gradient with respect to A: dL/dA = dL/dC * B^T
+    for (size_t i = start_row; i < end_row; ++i) {
+        for (size_t j = 0; j < k; ++j) {
+            float sum = 0.0f;
+            for (size_t l = 0; l < n; ++l) {
+                sum += output_grad_data[i * n + l] * b_data[j * n + l];
+            }
+            a_grad_data[i * k + j] = sum;
+        }
+    }
+}
+
+void matmul_backward_task_b(size_t start_col, size_t end_col, size_t m,
+                            size_t n, size_t k,
+                            const std::vector<float> &output_grad_data,
+                            const std::vector<float> &a_data,
+                            std::vector<float> &b_grad_data) {
+    // Computing gradient with respect to B: dL/dB = A^T * dL/dC
+    for (size_t j = start_col; j < end_col; ++j) {
+        for (size_t i = 0; i < k; ++i) {
+            float sum = 0.0f;
+            for (size_t l = 0; l < m; ++l) {
+                sum += a_data[l * k + i] * output_grad_data[l * n + j];
+            }
+            b_grad_data[i * n + j] = sum;
+        }
+    }
+}
+
+void matmul_backward(const Tensor &output_grad, const Tensor &a,
+                     const Tensor &b, Tensor &a_grad, Tensor &b_grad) {
+    size_t m = a.shape[0];
+    size_t k = a.shape[1];
+    size_t n = b.shape[1];
+
+    // Calculate gradients for A and B in parallel
+    parallel_for(m, matmul_backward_task_a, m, n, k, std::ref(output_grad.data),
+                 std::ref(b.data), std::ref(a_grad.data));
+
+    parallel_for(n, matmul_backward_task_b, m, n, k, std::ref(output_grad.data),
+                 std::ref(a.data), std::ref(b_grad.data));
+}
+
+// Function to perform add backward pass for a subset of columns
+void add_backward_task_b(size_t start_col, size_t end_col, size_t m,
+                         const std::vector<float> &output_grad_data,
+                         std::vector<float> &b_grad_data) {
+    // For b_grad, we need to sum the gradients across all rows for each column
+    for (size_t j = start_col; j < end_col; ++j) {
+        float sum = 0.0f;
+        for (size_t i = 0; i < m; ++i) {
+            sum += output_grad_data[i * end_col + j];
+        }
+        b_grad_data[j] = sum;
+    }
+}
+
+void add_backward(const Tensor &output_grad, const Tensor &a, const Tensor &b,
+                  Tensor &a_grad, Tensor &b_grad) {
+    size_t m = a.shape[0];
+    size_t n = a.shape[1];
+
+    // For a_grad, simply copy the output gradient as it flows through unchanged
+    std::copy(output_grad.data.begin(), output_grad.data.end(),
+              a_grad.data.begin());
+
+    // For b_grad, sum the gradients across each column
+    parallel_for(n, add_backward_task_b, m, std::ref(output_grad.data),
+                 std::ref(b_grad.data));
+}
+
+// Function to perform element-wise multiply backward pass
+void multiply_backward_task_a(size_t start, size_t end,
+                              const std::vector<float> &output_grad_data,
+                              const std::vector<float> &b_data,
+                              std::vector<float> &a_grad_data) {
+    for (size_t i = start; i < end; ++i) {
+        a_grad_data[i] = output_grad_data[i] * b_data[i];
+    }
+}
+
+void multiply_backward_task_b(size_t start, size_t end,
+                              const std::vector<float> &output_grad_data,
+                              const std::vector<float> &a_data,
+                              std::vector<float> &b_grad_data) {
+    for (size_t i = start; i < end; ++i) {
+        b_grad_data[i] = output_grad_data[i] * a_data[i];
+    }
+}
+
+void multiply_backward(const Tensor &output_grad, const Tensor &a,
+                       const Tensor &b, Tensor &a_grad, Tensor &b_grad) {
+    // For element-wise multiplication, gradients are calculated as:
+    // dL/dA = dL/dOutput * B
+    // dL/dB = dL/dOutput * A
+
+    parallel_for(a.data.size(), multiply_backward_task_a,
+                 std::ref(output_grad.data), std::ref(b.data),
+                 std::ref(a_grad.data));
+
+    parallel_for(b.data.size(), multiply_backward_task_b,
+                 std::ref(output_grad.data), std::ref(a.data),
+                 std::ref(b_grad.data));
+}
+
+// Function to apply ReLU backward pass for a subset of the tensor
+void relu_backward_task(size_t start, size_t end,
+                        const std::vector<float> &output_grad_data,
+                        const std::vector<float> &input_data,
+                        std::vector<float> &input_grad_data) {
+    for (size_t i = start; i < end; ++i) {
+        // Gradient is output_grad if input was positive, 0 otherwise
+        input_grad_data[i] = input_data[i] > 0 ? output_grad_data[i] : 0.0f;
+    }
+}
+
+void relu_backward(const Tensor &output_grad, const Tensor &input,
+                   Tensor &input_grad) {
+    parallel_for(input.data.size(), relu_backward_task,
+                 std::ref(output_grad.data), std::ref(input.data),
+                 std::ref(input_grad.data));
+}
+
+// Function to apply Softmax backward pass for a subset of rows
+void softmax_backward_task(size_t start_row, size_t end_row, size_t n,
+                           const std::vector<float> &output_grad_data,
+                           const std::vector<float> &output_data,
+                           std::vector<float> &input_grad_data) {
+    for (size_t i = start_row; i < end_row; ++i) {
+        size_t row_start = i * n;
+
+        // For each row, calculate the Jacobian vector product
+        for (size_t j = 0; j < n; ++j) {
+            float grad_sum = 0.0f;
+            for (size_t k = 0; k < n; ++k) {
+                // Jacobian of softmax: J[j,k] = s[j]*(delta[j,k] - s[k])
+                // where delta[j,k] is 1 if j==k, 0 otherwise
+                float softmax_j = output_data[row_start + j];
+                float softmax_k = output_data[row_start + k];
+                float jacobian_jk =
+                    softmax_j * ((j == k ? 1.0f : 0.0f) - softmax_k);
+                grad_sum += jacobian_jk * output_grad_data[row_start + k];
+            }
+            input_grad_data[row_start + j] = grad_sum;
+        }
+    }
+}
+
+void softmax_backward(const Tensor &output_grad, const Tensor &output,
+                      Tensor &input_grad) {
+    size_t m = output.shape[0]; // Number of rows
+    size_t n = output.shape[1]; // Number of columns
+
+    parallel_for(m, softmax_backward_task, n, std::ref(output_grad.data),
+                 std::ref(output.data), std::ref(input_grad.data));
+}
+
+// Function to apply Log backward pass
+void log_backward_task(size_t start, size_t end,
+                       const std::vector<float> &output_grad_data,
+                       const std::vector<float> &input_data,
+                       std::vector<float> &input_grad_data) {
+    for (size_t i = start; i < end; ++i) {
+        // Gradient of log(x) is 1/x, with a minimum value threshold
+        float x = std::max(input_data[i], 1e-8f);
+        input_grad_data[i] = output_grad_data[i] / x;
+    }
+}
+
+void log_backward(const Tensor &output_grad, const Tensor &input,
+                  Tensor &input_grad) {
+    parallel_for(input.data.size(), log_backward_task,
+                 std::ref(output_grad.data), std::ref(input.data),
+                 std::ref(input_grad.data));
+}
+
 // Function to perform matrix multiplication for a subset of rows
 void matmul_task(size_t start_row, size_t end_row, size_t m, size_t n, size_t k,
                  const std::vector<float> &a_data,
