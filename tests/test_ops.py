@@ -148,11 +148,6 @@ def test_softmax_backward():
     sum_exp_x = np.sum(exp_x, axis=1, keepdims=True)
     softmax_output = exp_x / sum_exp_x
 
-    # Create tensors
-    # tensor_x = framework.Tensor.from_numpy(x)
-    softmax_tensor = framework.Tensor.from_numpy(softmax_output)
-    output_grad = framework.Tensor.from_numpy(grad)
-
     # Calculate expected gradient using the Jacobian-vector product
     # For each row i, each element j:
     # dL/dx_j = sum_k(dL/dy_k * dy_k/dx_j) where y = softmax(x)
@@ -160,19 +155,16 @@ def test_softmax_backward():
     expected_grad = np.zeros_like(x)
 
     for i in range(x.shape[0]):
-        S = softmax_output[i]
-        J = np.zeros((x.shape[1], x.shape[1]))
+        s = softmax_output[i].reshape(-1, 1)
+        jacobian = np.diagflat(s) - np.dot(s, s.T)
+        expected_grad[i] = np.dot(grad[i], jacobian)
 
-        # Compute Jacobian matrix for this row
-        for j in range(x.shape[1]):
-            for k in range(x.shape[1]):
-                J[j, k] = S[j] * (1 if j == k else 0 - S[k])
-
-        # Compute gradient for this row
-        expected_grad[i] = np.dot(J, grad[i])
+    # Create tensors
+    tensor_x = framework.Tensor.from_numpy(x)
+    output_grad = framework.Tensor.from_numpy(grad)
 
     # Calculate actual gradient
-    input_grad = framework.ops.softmax_backward(output_grad, softmax_tensor)
+    input_grad = framework.ops.softmax_backward(output_grad, tensor_x)
 
     # Verify shape and values
     assert input_grad.shape == x.shape
@@ -228,7 +220,6 @@ def test_multiply():
     result = framework.ops.multiply(tensor1, tensor2)
 
     assert result.shape == (2, 2)
-    print(result.numpy())
     np.testing.assert_array_equal(result.numpy(), expected)
 
 

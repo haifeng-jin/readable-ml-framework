@@ -13,7 +13,8 @@ namespace ops {
 
 template <typename Func, typename... Args>
 void parallel_for(size_t total_work, Func &&func, Args &&...args) {
-    size_t num_threads = std::thread::hardware_concurrency();
+    // size_t num_threads = std::thread::hardware_concurrency();
+    size_t num_threads = 1;
     std::vector<std::future<void>> futures;
 
     size_t work_per_thread = total_work / num_threads;
@@ -168,19 +169,34 @@ void relu_backward(const Tensor &output_grad, const Tensor &input,
 // Function to apply Softmax backward pass for a subset of rows
 void softmax_backward_task(size_t start_row, size_t end_row, size_t n,
                            const std::vector<float> &output_grad_data,
-                           const std::vector<float> &output_data,
+                           const std::vector<float> &input_data,
                            std::vector<float> &input_grad_data) {
     for (size_t i = start_row; i < end_row; ++i) {
         size_t row_start = i * n;
+        float max_val = -std::numeric_limits<float>::infinity();
+        for (size_t j = 0; j < n; ++j) {
+            if (input_data[row_start + j] > max_val) {
+                max_val = input_data[row_start + j];
+            }
+        }
+
+        float sum_exp = 0.0f;
+        // Calculate the exponential of each element and the sum of exponentials
+        for (size_t j = 0; j < n; ++j) {
+            sum_exp += std::exp(input_data[row_start + j] -
+                                max_val); // Subtract max_val for stability
+        }
 
         // For each row, calculate the Jacobian vector product
         for (size_t j = 0; j < n; ++j) {
             float grad_sum = 0.0f;
+            float softmax_j =
+                std::exp(input_data[row_start + j] - max_val) / sum_exp;
             for (size_t k = 0; k < n; ++k) {
                 // Jacobian of softmax: J[j,k] = s[j]*(delta[j,k] - s[k])
                 // where delta[j,k] is 1 if j==k, 0 otherwise
-                float softmax_j = output_data[row_start + j];
-                float softmax_k = output_data[row_start + k];
+                float softmax_k =
+                    std::exp(input_data[row_start + k] - max_val) / sum_exp;
                 float jacobian_jk =
                     softmax_j * ((j == k ? 1.0f : 0.0f) - softmax_k);
                 grad_sum += jacobian_jk * output_grad_data[row_start + k];

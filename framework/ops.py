@@ -77,9 +77,9 @@ def relu_backward(output_grad, a):
     return input_grad
 
 
-def softmax_backward(output_grad, output):
-    input_grad = tensor.Tensor(shape=output.shape)
-    ops.softmax_backward(output_grad.data, output.data, input_grad.data)
+def softmax_backward(output_grad, a):
+    input_grad = tensor.Tensor(shape=a.shape)
+    ops.softmax_backward(output_grad.data, a.data, input_grad.data)
     return input_grad
 
 

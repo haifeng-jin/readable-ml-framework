@@ -22,7 +22,7 @@ void multiply_backward(const Tensor &output_grad, const Tensor &a, const Tensor 
                        Tensor &a_grad, Tensor &b_grad);
 void relu_backward(const Tensor &output_grad, const Tensor &input,
                    Tensor &input_grad);
-void softmax_backward(const Tensor &output_grad, const Tensor &output,
+void softmax_backward(const Tensor &output_grad, const Tensor &input_data,
                       Tensor &input_grad);
 void log_backward(const Tensor &output_grad, const Tensor &input,
                   Tensor &input_grad);
