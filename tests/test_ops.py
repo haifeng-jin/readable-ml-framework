@@ -18,6 +18,183 @@ def test_matmul():
     np.testing.assert_array_equal(result.numpy(), expected)
 
 
+def test_matmul_backward():
+    # Initialize test matrices
+    a = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=np.float32)  # (2, 3)
+    b = np.array(
+        [[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]], dtype=np.float32
+    )  # (3, 2)
+    grad = np.array([[2.0, 3.0], [4.0, 5.0]], dtype=np.float32)  # (2, 2)
+
+    # Create tensors
+    tensor_a = framework.Tensor.from_numpy(a)
+    tensor_b = framework.Tensor.from_numpy(b)
+    output_grad = framework.Tensor.from_numpy(grad)
+
+    # Calculate expected gradients using numpy
+    expected_grad_a = np.matmul(grad, b.T)  # dL/dA = dL/dC * B^T
+    expected_grad_b = np.matmul(a.T, grad)  # dL/dB = A^T * dL/dC
+
+    # Calculate actual gradients
+    a_grad, b_grad = framework.ops.matmul_backward(
+        output_grad, tensor_a, tensor_b
+    )
+
+    # Verify shapes and values
+    assert a_grad.shape == a.shape
+    assert b_grad.shape == b.shape
+    np.testing.assert_allclose(
+        a_grad.numpy(), expected_grad_a, rtol=1e-5, atol=1e-5
+    )
+    np.testing.assert_allclose(
+        b_grad.numpy(), expected_grad_b, rtol=1e-5, atol=1e-5
+    )
+
+
+def test_add_backward():
+    # Initialize test matrices
+    a = np.array([[5.0, 6.0], [7.0, 8.0]], dtype=np.float32)  # (2, 2)
+    b = np.array([[1.0, 2.0]], dtype=np.float32)  # (1, 2) for broadcasting
+    grad = np.array([[2.0, 3.0], [4.0, 5.0]], dtype=np.float32)  # (2, 2)
+
+    # Create tensors
+    tensor_a = framework.Tensor.from_numpy(a)
+    tensor_b = framework.Tensor.from_numpy(b)
+    output_grad = framework.Tensor.from_numpy(grad)
+
+    # Calculate expected gradients using numpy
+    expected_grad_a = grad  # For a, gradient flows through unchanged
+    expected_grad_b = np.sum(
+        grad, axis=0, keepdims=True
+    )  # Sum across broadcast dimension
+
+    # Calculate actual gradients
+    a_grad, b_grad = framework.ops.add_backward(output_grad, tensor_a, tensor_b)
+
+    # Verify shapes and values
+    assert a_grad.shape == a.shape
+    assert b_grad.shape == b.shape
+    np.testing.assert_allclose(
+        a_grad.numpy(), expected_grad_a, rtol=1e-5, atol=1e-5
+    )
+    np.testing.assert_allclose(
+        b_grad.numpy(), expected_grad_b, rtol=1e-5, atol=1e-5
+    )
+
+
+def test_multiply_backward():
+    # Initialize test matrices
+    a = np.array([[5.0, 6.0], [7.0, 8.0]], dtype=np.float32)
+    b = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
+    grad = np.array([[0.5, 0.6], [0.7, 0.8]], dtype=np.float32)
+
+    # Create tensors
+    tensor_a = framework.Tensor.from_numpy(a)
+    tensor_b = framework.Tensor.from_numpy(b)
+    output_grad = framework.Tensor.from_numpy(grad)
+
+    # Calculate expected gradients using numpy
+    expected_grad_a = grad * b  # dL/dA = dL/dOutput * B
+    expected_grad_b = grad * a  # dL/dB = dL/dOutput * A
+
+    # Calculate actual gradients
+    a_grad, b_grad = framework.ops.multiply_backward(
+        output_grad, tensor_a, tensor_b
+    )
+
+    # Verify shapes and values
+    assert a_grad.shape == a.shape
+    assert b_grad.shape == b.shape
+    np.testing.assert_allclose(
+        a_grad.numpy(), expected_grad_a, rtol=1e-5, atol=1e-5
+    )
+    np.testing.assert_allclose(
+        b_grad.numpy(), expected_grad_b, rtol=1e-5, atol=1e-5
+    )
+
+
+def test_relu_backward():
+    # Initialize test matrix with both positive and negative values
+    x = np.array([[-5.0, 6.0], [7.0, -8.0]], dtype=np.float32)
+    grad = np.array([[2.0, 3.0], [4.0, 5.0]], dtype=np.float32)
+
+    # Create tensors
+    tensor_x = framework.Tensor.from_numpy(x)
+    output_grad = framework.Tensor.from_numpy(grad)
+
+    # Calculate expected gradient using numpy
+    expected_grad = grad * (
+        x > 0
+    )  # Gradient is output_grad where input > 0, else 0
+
+    # Calculate actual gradient
+    input_grad = framework.ops.relu_backward(output_grad, tensor_x)
+
+    # Verify shape and values
+    assert input_grad.shape == x.shape
+    np.testing.assert_allclose(
+        input_grad.numpy(), expected_grad, rtol=1e-5, atol=1e-5
+    )
+
+
+def test_softmax_backward():
+    # Initialize test matrix
+    x = np.array([[5.0, 6.0], [7.0, 8.0]], dtype=np.float32)
+    grad = np.array([[0.1, 0.2], [0.3, 0.4]], dtype=np.float32)
+
+    # Calculate softmax output
+    x_shifted = x - np.max(x, axis=1, keepdims=True)
+    exp_x = np.exp(x_shifted)
+    sum_exp_x = np.sum(exp_x, axis=1, keepdims=True)
+    softmax_output = exp_x / sum_exp_x
+
+    # Calculate expected gradient using the Jacobian-vector product
+    # For each row i, each element j:
+    # dL/dx_j = sum_k(dL/dy_k * dy_k/dx_j) where y = softmax(x)
+    # dy_k/dx_j = y_j * (δ_jk - y_k) where δ_jk is Kronecker delta
+    expected_grad = np.zeros_like(x)
+
+    for i in range(x.shape[0]):
+        s = softmax_output[i].reshape(-1, 1)
+        jacobian = np.diagflat(s) - np.dot(s, s.T)
+        expected_grad[i] = np.dot(grad[i], jacobian)
+
+    # Create tensors
+    tensor_x = framework.Tensor.from_numpy(x)
+    output_grad = framework.Tensor.from_numpy(grad)
+
+    # Calculate actual gradient
+    input_grad = framework.ops.softmax_backward(output_grad, tensor_x)
+
+    # Verify shape and values
+    assert input_grad.shape == x.shape
+    np.testing.assert_allclose(
+        input_grad.numpy(), expected_grad, rtol=1e-5, atol=1e-5
+    )
+
+
+def test_log_backward():
+    # Initialize test matrix with positive values
+    x = np.array([[5.0, 6.0], [7.0, 8.0]], dtype=np.float32)
+    grad = np.array([[0.1, 0.2], [0.3, 0.4]], dtype=np.float32)
+
+    # Create tensors
+    tensor_x = framework.Tensor.from_numpy(x)
+    output_grad = framework.Tensor.from_numpy(grad)
+
+    # Calculate expected gradient using numpy
+    expected_grad = grad / x  # dL/dx = dL/dlogx * dlogx/dx = dL/dlogx * (1/x)
+
+    # Calculate actual gradient
+    input_grad = framework.ops.log_backward(output_grad, tensor_x)
+
+    # Verify shape and values
+    assert input_grad.shape == x.shape
+    np.testing.assert_allclose(
+        input_grad.numpy(), expected_grad, rtol=1e-5, atol=1e-5
+    )
+
+
 def test_add():
     numpy_array1 = np.array([[5.0, 6.0], [7.0, 8.0]], dtype=np.float32)
     numpy_array2 = np.array([[1.0, 2.0]], dtype=np.float32)
@@ -43,7 +220,6 @@ def test_multiply():
     result = framework.ops.multiply(tensor1, tensor2)
 
     assert result.shape == (2, 2)
-    print(result.numpy())
     np.testing.assert_array_equal(result.numpy(), expected)
 
 
@@ -96,6 +272,22 @@ def test_sum():
 
     assert result.shape == (1,)
     np.testing.assert_allclose(result.numpy(), expected, rtol=1e-5, atol=1e-5)
+
+
+def test_sum_backward():
+    x = np.array([[5.0, 6.0], [7.0, 8.0]], dtype=np.float32)
+    grad = np.array([2.0], dtype=np.float32)
+
+    tensor = framework.Tensor.from_numpy(x)
+    output_grad = framework.Tensor.from_numpy(grad)
+
+    expected = np.full(x.shape, grad[0], dtype=np.float32)
+    input_grad = framework.ops.sum_backward(output_grad, tensor)
+
+    assert input_grad.shape == x.shape
+    np.testing.assert_allclose(
+        input_grad.numpy(), expected, rtol=1e-5, atol=1e-5
+    )
 
 
 def test_mlp_forward_with_loss():
@@ -152,7 +344,9 @@ def test_mlp_forward_with_loss():
 
     result = ops.multiply(
         ops.sum(ops.multiply(y, ops.log(output_probabilities))),
-        -1.0 / batch_size,
+        framework.Tensor.from_numpy(
+            np.full(y.shape, -1.0 / batch_size, dtype=np.float32)
+        ),
     )
 
     assert result.shape == (1,)

@@ -15,17 +15,15 @@ namespace py = pybind11;
 
 class Tensor {
 public:
+    std::vector<size_t> shape;
+    std::vector<float> data;
+
     Tensor(const std::vector<size_t>& shape);
     Tensor(const std::vector<size_t>& shape, const std::vector<float>& data_ptr);
     ~Tensor();
 
-    std::vector<size_t> get_shape() const;
-    py::array_t<float> get_data() const;
-    const std::vector<float>& get_data_vector() const;
-
-private:
-    std::vector<size_t> shape_;
-    std::vector<float> data_float_;
+    // Make a copy of the data in the form of a numpy array.
+    py::array_t<float> copy_to_numpy() const;
 };
 
 #endif // TENSOR_H

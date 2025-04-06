@@ -1,34 +1,95 @@
-import numpy as np
-
 from framework import tensor
 from framework.core import ops
 
 
+# Forward operations
 def matmul(a, b):
-    return tensor.Tensor.from_data(ops.matmul(a.data, b.data))
+    result = tensor.Tensor(shape=(a.shape[0], b.shape[1]))
+    ops.matmul(a.data, b.data, result.data)
+    return result
 
 
 def add(a, b):
-    return tensor.Tensor.from_data(ops.add(a.data, b.data))
+    result = tensor.Tensor(shape=a.shape)
+    ops.add(a.data, b.data, result.data)
+    return result
 
 
 def multiply(a, b):
-    if isinstance(b, float):
-        b = tensor.Tensor.from_numpy(np.full(a.shape, b, dtype=np.float32))
-    return tensor.Tensor.from_data(ops.multiply(a.data, b.data))
+    result = tensor.Tensor(shape=a.shape)
+    ops.multiply(a.data, b.data, result.data)
+    return result
 
 
 def relu(a):
-    return tensor.Tensor.from_data(ops.relu(a.data))
+    result = tensor.Tensor(shape=a.shape)
+    ops.relu(a.data, result.data)
+    return result
 
 
 def softmax(a):
-    return tensor.Tensor.from_data(ops.softmax(a.data))
+    result = tensor.Tensor(shape=a.shape)
+    ops.softmax(a.data, result.data)
+    return result
 
 
 def log(a):
-    return tensor.Tensor.from_data(ops.log(a.data))
+    result = tensor.Tensor(shape=a.shape)
+    ops.log(a.data, result.data)
+    return result
 
 
 def sum(a):
-    return tensor.Tensor.from_data(ops.sum(a.data))
+    result = tensor.Tensor(shape=(1,))
+    ops.sum(a.data, result.data)
+    return result
+
+
+# Backward operations
+def matmul_backward(output_grad, a, b):
+    a_grad = tensor.Tensor(shape=a.shape)
+    b_grad = tensor.Tensor(shape=b.shape)
+    ops.matmul_backward(
+        output_grad.data, a.data, b.data, a_grad.data, b_grad.data
+    )
+    return a_grad, b_grad
+
+
+def add_backward(output_grad, a, b):
+    a_grad = tensor.Tensor(shape=a.shape)
+    b_grad = tensor.Tensor(shape=b.shape)
+    ops.add_backward(output_grad.data, a.data, b.data, a_grad.data, b_grad.data)
+    return a_grad, b_grad
+
+
+def multiply_backward(output_grad, a, b):
+    a_grad = tensor.Tensor(shape=a.shape)
+    b_grad = tensor.Tensor(shape=b.shape)
+    ops.multiply_backward(
+        output_grad.data, a.data, b.data, a_grad.data, b_grad.data
+    )
+    return a_grad, b_grad
+
+
+def relu_backward(output_grad, a):
+    input_grad = tensor.Tensor(shape=a.shape)
+    ops.relu_backward(output_grad.data, a.data, input_grad.data)
+    return input_grad
+
+
+def softmax_backward(output_grad, a):
+    input_grad = tensor.Tensor(shape=a.shape)
+    ops.softmax_backward(output_grad.data, a.data, input_grad.data)
+    return input_grad
+
+
+def log_backward(output_grad, a):
+    input_grad = tensor.Tensor(shape=a.shape)
+    ops.log_backward(output_grad.data, a.data, input_grad.data)
+    return input_grad
+
+
+def sum_backward(output_grad, a):
+    input_grad = tensor.Tensor(shape=a.shape)
+    ops.sum_backward(output_grad.data, a.data, input_grad.data)
+    return input_grad
