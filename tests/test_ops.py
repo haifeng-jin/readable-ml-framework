@@ -384,3 +384,15 @@ def test_mlp():
     )
 
     # Checks for backward pass results
+    np.testing.assert_allclose(
+        weights_hidden.grad.numpy(), d_weights_hidden, rtol=1e-5, atol=1e-5
+    )
+    np.testing.assert_allclose(
+        bias_hidden.grad.numpy(), d_bias_hidden, rtol=1e-5, atol=1e-5
+    )
+    np.testing.assert_allclose(
+        weights_output.grad.numpy(), d_weights_output, rtol=1e-5, atol=1e-5
+    )
+    np.testing.assert_allclose(
+        bias_output.grad.numpy(), d_bias_output, rtol=1e-5, atol=1e-5
+    )
