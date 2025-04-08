@@ -24,6 +24,9 @@ def _search_compute_graph(end_tensor):
 
         record = current_tensor.op_record
 
+        if record is None:
+            continue
+
         if record not in records:
             records.add(record)
 
@@ -83,11 +86,20 @@ def _backpropagation(end_tensor):
     # branches (C & D) before backpropagate it to A.
 
     sorted_indices = _topological_sort(tensors, records)
+
     for index in sorted_indices:
         tensor = tensors[index]
+
+        if tensor.op_record is None:
+            continue
+
         input_tensors = tensor.op_record.input_tensors
         func_backward = tensor.op_record.func_backward
         input_grads = func_backward(tensor.grad, *input_tensors)
+
+        if isinstance(input_grads, Tensor):
+            input_grads = (input_grads,)
+
         for input_tensor, input_grad in zip(input_tensors, input_grads):
             input_tensor.grad = input_grad
 

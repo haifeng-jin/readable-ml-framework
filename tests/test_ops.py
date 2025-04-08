@@ -329,6 +329,27 @@ def test_mlp():
         -np.sum(y * np.log(output_probabilities + 1e-8)) / batch_size
     )
 
+    # Gradient of the loss with respect to the output layer (before softmax)
+    d_output_linear = output_probabilities - y
+
+    # Gradient of weights and biases for the output layer
+    d_weights_output = np.dot(hidden_activation.T, d_output_linear) / batch_size
+    d_bias_output = np.sum(d_output_linear, axis=0, keepdims=True) / batch_size
+
+    # Gradient of the hidden layer activation
+    d_hidden_activation = np.dot(d_output_linear, weights_output.T)
+
+    # Gradient of the hidden layer (before activation)
+    d_hidden_linear = d_hidden_activation * (hidden_linear > 0).astype(
+        int
+    )  # Derivative of ReLU
+
+    # Gradient of weights and biases for the hidden layer
+    d_weights_hidden = np.dot(x.T, d_hidden_linear) / batch_size
+    d_bias_hidden = np.sum(d_hidden_linear, axis=0, keepdims=True) / batch_size
+    # Now we have all the grads:
+    # d_weights_hidden, d_bias_hidden, d_weights_output, d_bias_output
+
     # Framework implementation:
 
     # initializations
@@ -354,10 +375,12 @@ def test_mlp():
             np.full(y.shape, -1.0 / batch_size, dtype=np.float32)
         ),
     )
+    loss.backward()
 
     # Checks for foward pass results
-
     assert loss.shape == (1,)
     np.testing.assert_allclose(
         loss.numpy(), expected_loss, rtol=1e-5, atol=1e-5
     )
+
+    # Checks for backward pass results
