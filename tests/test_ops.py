@@ -290,12 +290,14 @@ def test_sum_backward():
     )
 
 
-def test_mlp_forward_with_loss():
+def test_mlp():
     # Constants
     input_size = 20
     hidden_size = 10
     num_classes = 10
     batch_size = 32
+
+    # Numpy implementation:
 
     # Initializations
     np.random.seed(0)
@@ -323,9 +325,13 @@ def test_mlp_forward_with_loss():
     )  # For numerical stability
     output_probabilities = exp_z / np.sum(exp_z, axis=1, keepdims=True)
 
-    expected = -np.sum(y * np.log(output_probabilities + 1e-8)) / batch_size
+    expected_loss = (
+        -np.sum(y * np.log(output_probabilities + 1e-8)) / batch_size
+    )
 
-    # initializations for framework
+    # Framework implementation:
+
+    # initializations
     x = framework.Tensor.from_numpy(x)
     y = framework.Tensor.from_numpy(y)
     weights_hidden = framework.Tensor.from_numpy(weights_hidden)
@@ -342,12 +348,16 @@ def test_mlp_forward_with_loss():
     )
     output_probabilities = ops.softmax(output_linear)
 
-    result = ops.multiply(
+    loss = ops.multiply(
         ops.sum(ops.multiply(y, ops.log(output_probabilities))),
         framework.Tensor.from_numpy(
             np.full(y.shape, -1.0 / batch_size, dtype=np.float32)
         ),
     )
 
-    assert result.shape == (1,)
-    np.testing.assert_allclose(result.numpy(), expected, rtol=1e-5, atol=1e-5)
+    # Checks for foward pass results
+
+    assert loss.shape == (1,)
+    np.testing.assert_allclose(
+        loss.numpy(), expected_loss, rtol=1e-5, atol=1e-5
+    )

@@ -1,6 +1,95 @@
+from collections import deque
+
 import numpy as np
 
 from framework import core
+
+
+class OpRecord:
+    def __init__(self, func, func_backward, input_tensors, output_tensor):
+        self.func = func
+        self.func_backward = func_backward
+        self.input_tensors = input_tensors
+        self.output_tensor = output_tensor
+
+
+def _search_compute_graph(end_tensor):
+    visited = set([end_tensor])
+    records = set()
+    queue = deque()
+    queue.append(end_tensor)
+
+    while len(queue) > 0:
+        current_tensor = queue.popleft()
+
+        record = current_tensor.op_record
+
+        if record not in records:
+            records.add(record)
+
+        for input_tensor in record.input_tensors:
+            if input_tensor in visited:
+                continue
+            visited.add(input_tensor)
+            queue.append(input_tensor)
+
+    return list(visited), list(records)
+
+
+def _topological_sort(tensors, records):
+    tensor_to_index = {}
+    for index, tensor in enumerate(tensors):
+        tensor_to_index[tensor] = index
+
+    # Build edges
+    output_to_input = [[] for i in range(len(tensors))]
+    for record in records:
+        for input_tensor in record.input_tensors:
+            output_index = tensor_to_index[record.output_tensor]
+            input_index = tensor_to_index[input_tensor]
+            output_to_input[output_index].append(input_index)
+
+    out_degree = [0 for i in range(len(tensors))]
+    for output_index, input_indices in enumerate(output_to_input):
+        for input_index in input_indices:
+            out_degree[input_index] += 1
+
+    results = []
+    # Get all the end tensors
+    queue = deque()
+    for index, degree in enumerate(out_degree):
+        if degree == 0:
+            queue.append(index)
+
+    while len(queue) > 0:
+        current_index = queue.popleft()
+        results.append(current_index)
+        for input_index in output_to_input[current_index]:
+            out_degree[input_index] -= 1
+            if out_degree[input_index] == 0:
+                queue.append(input_index)
+
+    return results
+
+
+def _backpropagation(end_tensor):
+    tensors, records = _search_compute_graph(end_tensor)
+
+    # Why topological sorting?
+    # A-B-C-E
+    #    \ /
+    #     D
+    # When backpropagate from E to A, B needs to gather the gradients from 2
+    # branches (C & D) before backpropagate it to A.
+
+    sorted_indices = _topological_sort(tensors, records)
+    for index in sorted_indices:
+        tensor = tensors[index]
+        input_tensors = tensor.op_record.input_tensors
+        func_backward = tensor.op_record.func_backward
+        input_grads = func_backward(tensor.grad, *input_tensors)
+        for input_tensor, input_grad in zip(input_tensors, input_grads):
+            input_tensor.grad = input_grad
 
 
 class Tensor:
@@ -14,22 +103,21 @@ class Tensor:
                 None, the tensor will be initialized with uninitialized values.
                 If provided, the data type must be float32.
         """
+        self.op_record = None
         self.shape = tuple(shape)
+        self.grad = None
         if isinstance(data, np.ndarray):
-            data = core.Tensor(shape, data.flatten().tolist())
+            self.data = core.Tensor(shape, data.flatten().tolist())
         elif isinstance(data, core.Tensor):
-            pass
+            self.data = data
         elif data is None:
-            data = core.Tensor(
-                shape
-            )  # Use the constructor that takes only shape
+            self.data = core.Tensor(shape)
         else:
             raise TypeError(
                 "Expected data to be one of (numpy.ndarray, "
                 "framework.core.Tensor, None). "
                 f"Received: {data} of type {type(data)}."
             )
-        self.data = data
 
     @classmethod
     def from_data(cls, data):
@@ -60,6 +148,8 @@ class Tensor:
         """Returns a copy of the tensor data as a NumPy array."""
         return self.data.copy_to_numpy()
 
-    def __del__(self):
-        """Destructor."""
-        pass  # The C++ destructor handles memory management
+    def backward(self):
+        """Backpropagation."""
+        if self.shape == (1,):
+            self.grad = Tensor.from_numpy(np.ones((1,), dtype=np.float32))
+        _backpropagation(self)
