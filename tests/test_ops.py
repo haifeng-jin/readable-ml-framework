@@ -372,7 +372,7 @@ def test_mlp():
     loss = ops.multiply(
         ops.sum(ops.multiply(y, ops.log(output_probabilities))),
         framework.Tensor.from_numpy(
-            np.full(y.shape, -1.0 / batch_size, dtype=np.float32)
+            np.full((1,), -1.0 / batch_size, dtype=np.float32)
         ),
     )
     loss.backward()
@@ -384,6 +384,12 @@ def test_mlp():
     )
 
     # Checks for backward pass results
+    np.testing.assert_allclose(
+        output_linear.grad.numpy(),
+        d_output_linear / batch_size,
+        rtol=1e-5,
+        atol=1e-5,
+    )
     np.testing.assert_allclose(
         weights_hidden.grad.numpy(), d_weights_hidden, rtol=1e-5, atol=1e-5
     )
