@@ -1,10 +1,42 @@
+"""Module for auto computing the gradients.
+
+The module contains all the logic for backpropagation, including:
+
+    * Fetch the entire compute graph from the very end output tensor, which is
+        the loss in most cases.
+
+    * Topologically sort all the tensors in the compute graph
+
+    * Produce the gradients for reach tensor.
+
+"""
+
 import collections
 
 from framework import core
 
 
 def _search_compute_graph(end_tensor):
+    """Fetch the entire compute graph from the output tensor.
+
+    It performs a breadth-first search (BFS) from the very end output tensor to
+    fetch all the input tensors.
+
+    Args:
+        end_tensor: `framework.tensor.Tensor`. This is the very end output
+            tensor of the compute graph, which is usually the loss.
+
+    Returns:
+        Two lists. The first list contains all the `framework.tensor.Tensor`s
+        in the compute graph. The second list contains all ops involved in the
+        compute graph in the format of `framework.ops.OpRecord`.
+    """
+    # visited marks if a tensor is visited during the BFS.
     visited = set([end_tensor])
+
+    # records is one of the return values. It contains all the ops in the
+    # format of framework.ops.OpRecords. Refer to the docstrings of OpRecords
+    # for more details.
     records = set()
     queue = collections.deque()
     queue.append(end_tensor)
