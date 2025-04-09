@@ -1,10 +1,11 @@
+import numpy as np
+
 from framework import tensor
 from framework.core import ops
 
 
 class OpRecord:
-    def __init__(self, func, func_backward, input_tensors, output_tensor):
-        self.func = func
+    def __init__(self, func_backward, input_tensors, output_tensor):
         self.func_backward = func_backward
         self.input_tensors = input_tensors
         self.output_tensor = output_tensor
@@ -16,7 +17,6 @@ def matmul(a, b):
     ops.matmul(a.data, b.data, result.data)
 
     result.op_record = OpRecord(
-        func=matmul,
         func_backward=matmul_backward,
         input_tensors=(a, b),
         output_tensor=result,
@@ -24,12 +24,18 @@ def matmul(a, b):
     return result
 
 
+def add_(a, b):
+    # element-wise in_place add
+    # We haven't support backprop for this case yet.
+    # So no OpRecord.
+    ops.add_element_wise_(a.data, b.data)
+
+
 def add(a, b):
     result = tensor.Tensor(shape=a.shape)
-    ops.add(a.data, b.data, result.data)
+    ops.add_row_broadcast(a.data, b.data, result.data)
 
     result.op_record = OpRecord(
-        func=add,
         func_backward=add_backward,
         input_tensors=(a, b),
         output_tensor=result,
@@ -38,11 +44,13 @@ def add(a, b):
 
 
 def multiply(a, b):
+    if isinstance(b, float):
+        # Support multiply by a single float.
+        b = tensor.Tensor.from_numpy(np.full(a.shape, b, dtype=np.float32))
     result = tensor.Tensor(shape=a.shape)
     ops.multiply(a.data, b.data, result.data)
 
     result.op_record = OpRecord(
-        func=multiply,
         func_backward=multiply_backward,
         input_tensors=(a, b),
         output_tensor=result,
@@ -55,7 +63,6 @@ def relu(a):
     ops.relu(a.data, result.data)
 
     result.op_record = OpRecord(
-        func=relu,
         func_backward=relu_backward,
         input_tensors=(a,),
         output_tensor=result,
@@ -68,7 +75,6 @@ def softmax(a):
     ops.softmax(a.data, result.data)
 
     result.op_record = OpRecord(
-        func=softmax,
         func_backward=softmax_backward,
         input_tensors=(a,),
         output_tensor=result,
@@ -81,7 +87,6 @@ def log(a):
     ops.log(a.data, result.data)
 
     result.op_record = OpRecord(
-        func=log,
         func_backward=log_backward,
         input_tensors=(a,),
         output_tensor=result,
@@ -94,7 +99,6 @@ def sum(a):
     ops.sum(a.data, result.data)
 
     result.op_record = OpRecord(
-        func=sum,
         func_backward=sum_backward,
         input_tensors=(a,),
         output_tensor=result,

@@ -1,5 +1,7 @@
 import collections
 
+from framework import core
+
 
 def _search_compute_graph(end_tensor):
     visited = set([end_tensor])
@@ -75,6 +77,11 @@ def backpropagation(end_tensor):
 
     sorted_indices = _topological_sort(tensors, records)
 
+    # Clear the grads from last round of backpropagation
+    for tensor in tensors:
+        if tensor is not end_tensor:
+            tensor.grad = None
+
     for index in sorted_indices:
         tensor = tensors[index]
 
@@ -92,8 +99,6 @@ def backpropagation(end_tensor):
             if input_tensor.grad is None:
                 input_tensor.grad = input_grad
             else:
-                from framework import tensor
-
-                input_tensor.grad = tensor.Tensor.from_numpy(
-                    input_tensor.grad.numpy() + input_grad.numpy()
+                input_tensor.grad = core.ops.add_element_wise_(
+                    input_tensor.grad, input_grad
                 )
