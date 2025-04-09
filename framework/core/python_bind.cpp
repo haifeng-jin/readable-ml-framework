@@ -15,7 +15,10 @@ PYBIND11_MODULE(core, m) { // the module name matches the package name.
     // Forward operations
     ops_module.def("matmul", &ops::matmul,
                    "Matrix multiplication of two 2-d tensors.");
-    ops_module.def("add", &ops::add, "Add (1, n) to (m, n), broadcast by row.");
+    ops_module.def("add_row_broadcast", &ops::add_row_broadcast,
+                   "Add (1, n) to (m, n), broadcast by row.");
+    ops_module.def("add_element_wise_", &ops::add_element_wise_,
+                   "Add (m, n) to (m, n) element-wise in-place.");
     ops_module.def("multiply", &ops::multiply,
                    "Element-wise multiply for a tensor.");
     ops_module.def("relu", &ops::relu, "The relu op for tensors.");
@@ -27,7 +30,7 @@ PYBIND11_MODULE(core, m) { // the module name matches the package name.
     // Backward operations
     ops_module.def("matmul_backward", &ops::matmul_backward,
                    "Backward pass for matrix multiplication.");
-    ops_module.def("add_backward", &ops::add_backward,
+    ops_module.def("add_backward", &ops::add_row_broadcast_backward,
                    "Backward pass for add operation.");
     ops_module.def("multiply_backward", &ops::multiply_backward,
                    "Backward pass for element-wise multiplication.");

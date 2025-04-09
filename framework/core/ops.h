@@ -6,7 +6,8 @@
 namespace ops {
 // Forward operations
 void matmul(const Tensor &a, const Tensor &b, Tensor &output);
-void add(const Tensor& a, const Tensor& b, Tensor &output);
+void add_row_broadcast(const Tensor& a, const Tensor& b, Tensor &output);
+void add_element_wise_(Tensor &a, const Tensor &b);
 void multiply(const Tensor &a, const Tensor &b, Tensor &output);
 void relu(const Tensor& tensor, Tensor &output);
 void softmax(const Tensor& tensor, Tensor &output);
@@ -16,7 +17,7 @@ void sum(const Tensor& tensor, Tensor &output);
 // Backward operations
 void matmul_backward(const Tensor &output_grad, const Tensor &a, const Tensor &b, 
                      Tensor &a_grad, Tensor &b_grad);
-void add_backward(const Tensor &output_grad, const Tensor &a, const Tensor &b,
+void add_row_broadcast_backward(const Tensor &output_grad, const Tensor &a, const Tensor &b,
                   Tensor &a_grad, Tensor &b_grad);
 void multiply_backward(const Tensor &output_grad, const Tensor &a, const Tensor &b,
                        Tensor &a_grad, Tensor &b_grad);

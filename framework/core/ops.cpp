@@ -87,9 +87,10 @@ void matmul_backward(const Tensor &output_grad, const Tensor &a,
 }
 
 // Function to perform add backward pass for a subset of columns
-void add_backward_task_b(size_t start_col, size_t end_col, size_t m, size_t n,
-                         const std::vector<float> &output_grad_data,
-                         std::vector<float> &b_grad_data) {
+void add_row_broadcast_backward_task_b(
+    size_t start_col, size_t end_col, size_t m, size_t n,
+    const std::vector<float> &output_grad_data,
+    std::vector<float> &b_grad_data) {
     // For b_grad, we need to sum the gradients across all rows for each column
     for (size_t j = start_col; j < end_col; ++j) {
         float sum = 0.0f;
@@ -100,8 +101,9 @@ void add_backward_task_b(size_t start_col, size_t end_col, size_t m, size_t n,
     }
 }
 
-void add_backward(const Tensor &output_grad, const Tensor &a, const Tensor &b,
-                  Tensor &a_grad, Tensor &b_grad) {
+void add_row_broadcast_backward(const Tensor &output_grad, const Tensor &a,
+                                const Tensor &b, Tensor &a_grad,
+                                Tensor &b_grad) {
     size_t m = a.shape[0];
     size_t n = a.shape[1];
 
@@ -110,8 +112,8 @@ void add_backward(const Tensor &output_grad, const Tensor &a, const Tensor &b,
               a_grad.data.begin());
 
     // For b_grad, sum the gradients across each column
-    parallel_for(n, add_backward_task_b, m, n, std::ref(output_grad.data),
-                 std::ref(b_grad.data));
+    parallel_for(n, add_row_broadcast_backward_task_b, m, n,
+                 std::ref(output_grad.data), std::ref(b_grad.data));
 }
 
 // Function to perform element-wise multiply backward pass
@@ -260,10 +262,10 @@ void matmul(const Tensor &a, const Tensor &b, Tensor &output) {
 }
 
 // Function to perform row-wise addition for a subset of rows
-void add_task(size_t start_row, size_t end_row, size_t n,
-              const std::vector<float> &a_data,
-              const std::vector<float> &b_data,
-              std::vector<float> &output_data) {
+void add_row_broadcast_task(size_t start_row, size_t end_row, size_t n,
+                            const std::vector<float> &a_data,
+                            const std::vector<float> &b_data,
+                            std::vector<float> &output_data) {
     for (size_t i = start_row; i < end_row; ++i) {
         for (size_t j = 0; j < n; ++j) {
             output_data[i * n + j] = a_data[i * n + j] + b_data[j];
@@ -271,12 +273,24 @@ void add_task(size_t start_row, size_t end_row, size_t n,
     }
 }
 
-void add(const Tensor &a, const Tensor &b, Tensor &output) {
+void add_row_broadcast(const Tensor &a, const Tensor &b, Tensor &output) {
     size_t m = a.shape[0];
     size_t n = a.shape[1];
 
-    parallel_for(m, add_task, n, std::ref(a.data), std::ref(b.data),
-                 std::ref(output.data));
+    parallel_for(m, add_row_broadcast_task, n, std::ref(a.data),
+                 std::ref(b.data), std::ref(output.data));
+}
+
+void add_element_wise_task(size_t start, size_t end, std::vector<float> &a_data,
+                           const std::vector<float> &b_data) {
+    for (size_t i = start; i < end; ++i) {
+        a_data[i] += b_data[i];
+    }
+}
+
+void add_element_wise_(Tensor &a, const Tensor &b) {
+    parallel_for(a.data.size(), add_element_wise_task, std::ref(a.data),
+                 std::ref(b.data));
 }
 
 // Function to perform element-wise multiply for a subset of rows
