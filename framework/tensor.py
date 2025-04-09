@@ -1,5 +1,6 @@
 import numpy as np
 
+from framework import autograd
 from framework import core
 
 
@@ -14,22 +15,21 @@ class Tensor:
                 None, the tensor will be initialized with uninitialized values.
                 If provided, the data type must be float32.
         """
+        self.op_record = None
         self.shape = tuple(shape)
+        self.grad = None
         if isinstance(data, np.ndarray):
-            data = core.Tensor(shape, data.flatten().tolist())
+            self.data = core.Tensor(shape, data.flatten().tolist())
         elif isinstance(data, core.Tensor):
-            pass
+            self.data = data
         elif data is None:
-            data = core.Tensor(
-                shape
-            )  # Use the constructor that takes only shape
+            self.data = core.Tensor(shape)
         else:
             raise TypeError(
                 "Expected data to be one of (numpy.ndarray, "
                 "framework.core.Tensor, None). "
                 f"Received: {data} of type {type(data)}."
             )
-        self.data = data
 
     @classmethod
     def from_data(cls, data):
@@ -60,6 +60,8 @@ class Tensor:
         """Returns a copy of the tensor data as a NumPy array."""
         return self.data.copy_to_numpy()
 
-    def __del__(self):
-        """Destructor."""
-        pass  # The C++ destructor handles memory management
+    def backward(self):
+        """Backpropagation."""
+        if self.shape == (1,):
+            self.grad = Tensor.from_numpy(np.ones((1,), dtype=np.float32))
+        autograd.backpropagation(self)

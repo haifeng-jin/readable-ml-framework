@@ -290,12 +290,14 @@ def test_sum_backward():
     )
 
 
-def test_mlp_forward_with_loss():
+def test_mlp():
     # Constants
     input_size = 20
     hidden_size = 10
     num_classes = 10
     batch_size = 32
+
+    # Numpy implementation:
 
     # Initializations
     np.random.seed(0)
@@ -323,9 +325,34 @@ def test_mlp_forward_with_loss():
     )  # For numerical stability
     output_probabilities = exp_z / np.sum(exp_z, axis=1, keepdims=True)
 
-    expected = -np.sum(y * np.log(output_probabilities + 1e-8)) / batch_size
+    expected_loss = (
+        -np.sum(y * np.log(output_probabilities + 1e-8)) / batch_size
+    )
 
-    # initializations for framework
+    # Gradient of the loss with respect to the output layer (before softmax)
+    d_output_linear = output_probabilities - y
+
+    # Gradient of weights and biases for the output layer
+    d_weights_output = np.dot(hidden_activation.T, d_output_linear) / batch_size
+    d_bias_output = np.sum(d_output_linear, axis=0, keepdims=True) / batch_size
+
+    # Gradient of the hidden layer activation
+    d_hidden_activation = np.dot(d_output_linear, weights_output.T)
+
+    # Gradient of the hidden layer (before activation)
+    d_hidden_linear = d_hidden_activation * (hidden_linear > 0).astype(
+        int
+    )  # Derivative of ReLU
+
+    # Gradient of weights and biases for the hidden layer
+    d_weights_hidden = np.dot(x.T, d_hidden_linear) / batch_size
+    d_bias_hidden = np.sum(d_hidden_linear, axis=0, keepdims=True) / batch_size
+    # Now we have all the grads:
+    # d_weights_hidden, d_bias_hidden, d_weights_output, d_bias_output
+
+    # Framework implementation:
+
+    # initializations
     x = framework.Tensor.from_numpy(x)
     y = framework.Tensor.from_numpy(y)
     weights_hidden = framework.Tensor.from_numpy(weights_hidden)
@@ -342,12 +369,36 @@ def test_mlp_forward_with_loss():
     )
     output_probabilities = ops.softmax(output_linear)
 
-    result = ops.multiply(
+    loss = ops.multiply(
         ops.sum(ops.multiply(y, ops.log(output_probabilities))),
         framework.Tensor.from_numpy(
-            np.full(y.shape, -1.0 / batch_size, dtype=np.float32)
+            np.full((1,), -1.0 / batch_size, dtype=np.float32)
         ),
     )
+    loss.backward()
 
-    assert result.shape == (1,)
-    np.testing.assert_allclose(result.numpy(), expected, rtol=1e-5, atol=1e-5)
+    # Checks for foward pass results
+    assert loss.shape == (1,)
+    np.testing.assert_allclose(
+        loss.numpy(), expected_loss, rtol=1e-5, atol=1e-5
+    )
+
+    # Checks for backward pass results
+    np.testing.assert_allclose(
+        output_linear.grad.numpy(),
+        d_output_linear / batch_size,
+        rtol=1e-5,
+        atol=1e-5,
+    )
+    np.testing.assert_allclose(
+        weights_hidden.grad.numpy(), d_weights_hidden, rtol=1e-5, atol=1e-5
+    )
+    np.testing.assert_allclose(
+        bias_hidden.grad.numpy(), d_bias_hidden, rtol=1e-5, atol=1e-5
+    )
+    np.testing.assert_allclose(
+        weights_output.grad.numpy(), d_weights_output, rtol=1e-5, atol=1e-5
+    )
+    np.testing.assert_allclose(
+        bias_output.grad.numpy(), d_bias_output, rtol=1e-5, atol=1e-5
+    )
