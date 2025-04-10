@@ -11,12 +11,19 @@ For all the backward functions, their signatures all follow the same pattern:
 The arguments are the gradients of the output tensor followed by the input
 tensors. In this way, they are easier to call during backward propagation when
 we try to call different backward functions in a loop with the same code.
-"""
 
-from framework.tensor import Tensor
+The implementation also follows the same pattern. They first create the tensors
+for the resulting gradients, then call the C++ implementation.
+
+All the C++ backward function all follow the same pattern in ordering the
+parameters. The first argument is always the gradient of the output tensor.
+Then, follows all the input tensors. Finally, the gradients for the input
+tensors.
+"""
 
 # framework.core.ops is the C++ implementation of the ops.
 from framework.core import ops
+from framework.tensor import Tensor
 
 
 def matmul_backward(output_grad, x, y):

@@ -14,12 +14,11 @@ compute graph from the final loss tensor. `OpRecord` is used by the
 
 import numpy as np
 
-from framework.tensor import Tensor
-
 # framework.core.ops is the C++ implementation of the ops.
 from framework.core import ops
 from framework.ops import backward
 from framework.ops.op_record import OpRecord
+from framework.tensor import Tensor
 
 
 def matmul(x, y):
