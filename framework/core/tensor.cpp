@@ -5,7 +5,11 @@
 
 namespace py = pybind11;
 
-// Constructor
+/*
+ * Initializes a Tensor object with the specified shape. The underlying data
+ * vector is resized to the total number of elements, but the elements are not
+ * initialized.
+ */
 Tensor::Tensor(const std::vector<size_t> &shape) : shape(shape) {
     size_t size = 1;
     for (size_t dim : shape) {
@@ -14,7 +18,12 @@ Tensor::Tensor(const std::vector<size_t> &shape) : shape(shape) {
     data.resize(size);
 }
 
-// Constructor that takes a plain python list
+/*
+ * Initializes a Tensor object with the specified shape and data. It is assumed
+ * that the size of the provided data vector matches the total number of
+ * elements defined by the shape. The data is copied into the Tensor's internal
+ * data vector.
+ */
 Tensor::Tensor(const std::vector<size_t> &shape,
                const std::vector<float> &data_ptr)
     : shape(shape) {
@@ -28,24 +37,31 @@ Tensor::Tensor(const std::vector<size_t> &shape,
 
 // Destructor
 Tensor::~Tensor() {
-    data.clear();
-    shape.clear();
+    // std::vector's destructor automatically handles the deallocation
+    // of the memory used by its elements. Explicitly calling clear() here
+    // is redundant for memory management in this case.
 }
 
-// Get data as a numpy array.
-// The py::array_t is the pybind's numpy array type.
+/*
+ * Returns a Pybind11 NumPy array containing a copy of the Tensor's data.
+ * A new NumPy array is created with the same shape as the Tensor, and
+ * the Tensor's data is copied into this array. This allows for interaction
+ * with NumPy in Python without modifying the original Tensor.
+ */
 py::array_t<float> Tensor::copy_to_numpy() const {
     size_t size = 1;
     for (size_t dim : shape) {
         size *= dim;
     }
 
-    // Initialize an empty numpy array.
+    // Create a NumPy array with the same shape as the tensor.
+    // py::array_t is the NumPy array type in Pybind11.
     auto result = py::array_t<float>(shape);
+    // Get access to the NumPy array's buffer information.
     py::buffer_info buf_info = result.request();
     float *ptr = static_cast<float *>(buf_info.ptr);
 
-    // Copy the data into the numpy array.
+    // Copy the tensor's data to the NumPy array's buffer.
     std::copy(data.begin(), data.end(), ptr);
 
     return result;
