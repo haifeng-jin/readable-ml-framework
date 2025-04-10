@@ -15,7 +15,8 @@ gradients for all the tensors in the compute graph.
 
 import collections
 
-from framework import core
+# framework.core.ops is the C++ implementation of the ops.
+from framework.core import ops
 
 
 def _tracing(end_tensor):
@@ -269,6 +270,6 @@ def backward_propagation(end_tensor):
                 # tensor. So, a tensor may already have some gradients when we
                 # try to assign one to it. In this case, we simply element-wise
                 # add the gradient to the existing one.
-                input_tensor.grad = core.ops.add_element_wise_(
+                input_tensor.grad = ops.add_element_wise_(
                     input_tensor.grad, input_grad
                 )

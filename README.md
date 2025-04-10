@@ -16,14 +16,15 @@ by reading it.
 
 This repo is mainly for educational purposes only and no where near a
 feature-complete ML framework. It is for people, who wants to learn the
-internal mechanisms of ML frameworks, like TensorFlow, PyTorch, and JAX. It
-implements the eager mode of execution with the tensor data structure and
+internal mechanisms of ML frameworks, like TensorFlow, PyTorch, and JAX.
+
+It implements the eager mode of execution with the tensor data structure and
 operators in C++ and exposed with Python APIs. The operators are implemented
 with multi-threading for speed optimization.
 
-There are many features that we intentionally omitted to keep the codebase
-simple enough to read, which includes GPU support, distributed computing,
-compilers, SIMD support, etc.
+The code is structured in a way that is easiest for people to read. All complex
+features, including sanity checks for function arguments, are not implemented,
+which we will talk about later.
 
 ## Install
 

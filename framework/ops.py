@@ -5,14 +5,30 @@ function of each operation. Each operation function here is a wrapper of the
 C++ implementation of the operation. The operations are mainly directly used
 by the users to implement their layers, models, losses, and optimizers.
 
-It also contains the OpRecord, which records the operations performed on each
-`framework.tensor.Tensor`, which is then used by the `framework.autograd`
-module to perform backward propagation.
+For all the operation forward pass functions, like add, multiply, relu,
+softmax, matmul, log, sum, besides applying the operations on the input tensors
+to produce the output tensor, it also attach an `OpRecord` object to the
+`.op_record` attribute of the output tensor so that we can trace the entire
+compute graph from the final loss tensor. `OpRecord` is used by the
+`framework.autograd` module to perform backward propagation.
+
+For all the backward pass functions, their signatures all follow the same
+pattern:
+
+```
+def name_backward(output_grad, x, ...):
+```
+
+The arguments are the gradients of the output tensor followed by the input
+tensors.  In this way, they are easier to call during backward propagation when
+we try to call different backward functions in a loop with the same code.
 """
 
 import numpy as np
 
 from framework import tensor
+
+# framework.core.ops is the C++ implementation of the ops.
 from framework.core import ops
 
 
@@ -60,16 +76,30 @@ class OpRecord:
         self.output_tensor = output_tensor
 
 
-# Forward operations
 def matmul(x, y):
+    """Matrix multiplication.
+
+    Args:
+        x: `framework.tensor.Tensor`. A tensor of shape (m, k).
+        y: `framework.tensor.Tensor`. A tensor of shape (k, n).
+
+    Returns:
+        A `framework.tensor.Tensor` with shape (m, n). The result of matrix
+        multiplication of x and y.
+    """
+    # Create the output tensor.
     result = tensor.Tensor(shape=(x.shape[0], y.shape[1]))
+
+    # Call the op in C++.
     ops.matmul(x.data, y.data, result.data)
 
+    # Record the tensors and the backward function.
     result.op_record = OpRecord(
         func_backward=matmul_backward,
         input_tensors=(x, y),
         output_tensor=result,
     )
+
     return result
 
 
