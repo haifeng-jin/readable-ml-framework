@@ -73,6 +73,11 @@ class Tensor:
         The tensor has to be a single value tensor of shape (1,). The most
         common case is loss.backward(), where loss is a single float value.
         """
+        if self.shape != (1,):
+            raise ValueError(
+                "Only support backward() on single-value tensors, "
+                f"but got shape {self.shape}."
+            )
         # Create the gradient of the single value, which is always 1.
         self.grad = Tensor.from_numpy(np.ones((1,), dtype=np.float32))
         # Call the autograd module to perform backward propagation.
