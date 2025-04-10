@@ -14,7 +14,7 @@ compute graph from the final loss tensor. `OpRecord` is used by the
 
 import numpy as np
 
-from framework import Tensor
+from framework.tensor import Tensor
 
 # framework.core.ops is the C++ implementation of the ops.
 from framework.core import ops
