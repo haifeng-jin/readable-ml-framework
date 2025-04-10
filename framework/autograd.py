@@ -9,7 +9,7 @@ The module contains all the logic for backward propagation, including:
 
     * Produce the gradients for reach tensor.
 
-The module is used by `framework.tensor.Tensor.backward()` to compute the
+The module is used by `framework.Tensor.backward()` to compute the
 gradients for all the tensors in the compute graph.
 """
 
@@ -30,11 +30,11 @@ def _tracing(end_tensor):
     the compute graph.
 
     Args:
-        end_tensor: `framework.tensor.Tensor`. This is the very end output
+        end_tensor: `framework.Tensor`. This is the very end output
             tensor of the compute graph, which is usually the loss.
 
     Returns:
-        Two lists. The first list contains all the `framework.tensor.Tensor`s
+        Two lists. The first list contains all the `framework.Tensor`s
         in the compute graph. The second list contains all ops involved in the
         compute graph in the format of `framework.ops.OpRecord`.
     """
@@ -137,7 +137,7 @@ def _topological_sort(tensors, records):
     ---
 
     Args:
-        tensors: List of `framework.tensor.Tensor`. All the tensors in the
+        tensors: List of `framework.Tensor`. All the tensors in the
             compute graph.
         records: List of `framework.ops.OpRecord`. All the `OpRecord`s in the
             compute graph.
@@ -211,13 +211,13 @@ def backward_propagation(end_tensor):
 
     It first traces the compute graph and sorts the tensors in topological
     order. Then, it computes the gradients for each tensor in the sorted order.
-    The gradient of a tensor is stored in `framework.tensor.Tensor.grad`.
+    The gradient of a tensor is stored in `framework.Tensor.grad`.
 
-    This function is used by `framework.tensor.Tensor.backward()`. The users
+    This function is used by `framework.Tensor.backward()`. The users
     would usually do `loss.backward()` to trigger this function.
 
     Args:
-        end_tensor: `framework.tensor.Tensor`. The tensor from which backward
+        end_tensor: `framework.Tensor`. The tensor from which backward
             propagation starts.
     """
 
