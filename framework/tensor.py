@@ -64,4 +64,4 @@ class Tensor:
         """Backpropagation."""
         if self.shape == (1,):
             self.grad = Tensor.from_numpy(np.ones((1,), dtype=np.float32))
-        autograd.backpropagation(self)
+        autograd.backward_propagation(self)

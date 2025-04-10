@@ -2,7 +2,8 @@
 
 This module contains all the operation functions, both forward and backward
 function of each operation. Each operation function here is a wrapper of the
-C++ implementation of the operation.
+C++ implementation of the operation. The operations are mainly directly used
+by the users to implement their layers, models, losses, and optimizers.
 
 It also contains the OpRecord, which records the operations performed on each
 `framework.tensor.Tensor`, which is then used by the `framework.autograd`
@@ -21,6 +22,10 @@ class OpRecord:
     A record contains the operation's input tensors and the backward function,
     and the output tensor. It helps the autograd module to fetch the entire
     compute graph during backward propagation.
+
+    Each operation should have a forward function as well, which is omitted
+    here. This is mainly because the forward function is not useful during
+    backward propagation.
 
     In a compute graph, Each operation is an edge in the compute graph.  Each
     tensor is a node in the compute graph.
