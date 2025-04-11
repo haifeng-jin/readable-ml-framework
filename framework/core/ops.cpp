@@ -13,7 +13,8 @@ namespace ops {
 
 template <typename Func, typename... Args>
 void parallel_for(size_t total_work, Func &&func, Args &&...args) {
-    size_t num_threads = std::thread::hardware_concurrency();
+    size_t num_threads = std::min(
+        static_cast<size_t>(std::thread::hardware_concurrency()), total_work);
     std::vector<std::future<void>> futures;
 
     size_t work_per_thread = total_work / num_threads;
