@@ -8,13 +8,17 @@ namespace py = pybind11;
 /*
  * Initializes a Tensor object with the specified shape. The underlying data
  * vector is resized to the total number of elements, but the elements are not
- * initialized.
+ * initialized to 0.0f.
  */
 Tensor::Tensor(const std::vector<size_t> &shape) : shape(shape) {
     size_t size = 1;
     for (size_t dim : shape) {
         size *= dim;
     }
+    // data is initialized by default at the creation of the instance.
+    // Its size was 0. With resize, all the additional elements added to the
+    // vector during resizing are initialized as 0.0f, which is the default
+    // value of function call float().
     data.resize(size);
 }
 
