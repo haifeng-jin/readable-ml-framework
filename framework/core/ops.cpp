@@ -12,7 +12,7 @@ namespace py = pybind11;
 // Nest all the operation functions under the ops to avoid naming conflicts.
 namespace ops {
 
-/*
+/**
  * @brief This function run tasks in parallel with multi-threading.
  *
  * @param total_work: The number of tasks that could run in parallel.
@@ -66,26 +66,27 @@ void parallel_for(size_t total_work, Func &&func, Args &&...args) {
  * Forward functions:
  */
 
-void matmul_task(size_t start_row, size_t end_row, size_t x_col, size_t y_col,
-                 const std::vector<float> &x_data,
+void matmul_task(size_t start_row, size_t end_row, size_t num_x_cols,
+                 size_t num_y_cols, const std::vector<float> &x_data,
                  const std::vector<float> &y_data,
                  std::vector<float> &output_data) {
     // Iterate through a specified range of rows of the first matrix (x).
     for (size_t i = start_row; i < end_row; ++i) {
         // For each row of x in the assigned range, iterate through all columns
         // of the second matrix (y).
-        for (size_t j = 0; j < y_col; ++j) {
+        for (size_t j = 0; j < num_y_cols; ++j) {
             // This inner loop calculates the dot product (inner product) of
             // the i-th row of x and the j-th column of y. This is the
             // fundamental operation of matrix multiplication.
             float inner_product = 0.0f;
-            for (size_t l = 0; l < x_col; ++l) {
-                inner_product += x_data[i * x_col + l] * y_data[l * y_col + j];
+            for (size_t l = 0; l < num_x_cols; ++l) {
+                inner_product +=
+                    x_data[i * num_x_cols + l] * y_data[l * num_y_cols + j];
             }
 
             // The computed inner product is the element at the i-th row and
             // j-th column of the output matrix.
-            output_data[i * y_col + j] = inner_product;
+            output_data[i * num_y_cols + j] = inner_product;
         }
     }
 }
@@ -116,140 +117,282 @@ void matmul_task(size_t start_row, size_t end_row, size_t x_col, size_t y_col,
  * These sub-blocks are then combined (tiled) to form the final output matrix.
  */
 void matmul(const Tensor &x, const Tensor &y, Tensor &output) {
-    size_t x_row = x.shape[0];
-    size_t x_col = x.shape[1];
-    size_t y_col = y.shape[1];
+    size_t num_x_rows = x.shape[0];
+    size_t num_x_cols = x.shape[1];
+    size_t num_y_cols = y.shape[1];
 
-    parallel_for(x_row, matmul_task, x_col, y_col, std::ref(x.data),
-                 std::ref(y.data), std::ref(output.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        num_x_rows,
+        // The function for each thread.
+        matmul_task,
+        // More args for the function.
+        num_x_cols, num_y_cols, std::ref(x.data), std::ref(y.data),
+        std::ref(output.data));
 }
 
-// Function to perform row-wise addition for a subset of rows
-void add_row_broadcast_task(size_t start_row, size_t end_row, size_t n,
+void add_row_broadcast_task(size_t start, size_t end, size_t num_y_cols,
                             const std::vector<float> &x_data,
                             const std::vector<float> &y_data,
                             std::vector<float> &output_data) {
-    for (size_t i = start_row; i < end_row; ++i) {
-        for (size_t j = 0; j < n; ++j) {
-            output_data[i * n + j] = x_data[i * n + j] + y_data[j];
-        }
+    // Iterate the elements in the given interval.
+    for (size_t i = start; i < end; ++i) {
+        output_data[i] = x_data[i] + y_data[i % num_y_cols];
     }
 }
 
+/**
+ * Add vector y to matrix x by broadcasting the vector to all the rows.
+ *
+ * So output[i, j] = x[i, j] + y[j].
+ * If we flatten all of them, we get:
+ *
+ * for i in range(num_rows):
+ *     for j in range(num_cols):
+ *         output[i * num_cols + j] = x[i * num_cols + j] + y[j],
+ *
+ * which is equivalent to:
+ *
+ * for i in range(num_rows * num_cols):
+ *     output[i] = x[i] + y[i % num_cols]
+ *
+ * So all the add operations are parallelizable.
+ */
 void add_row_broadcast(const Tensor &x, const Tensor &y, Tensor &output) {
-    size_t m = x.shape[0];
-    size_t n = x.shape[1];
+    size_t num_x_rows = x.shape[0];
+    size_t num_y_cols = y.data.size();
 
-    parallel_for(m, add_row_broadcast_task, n, std::ref(x.data),
-                 std::ref(y.data), std::ref(output.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        x.data.size(),
+        // The function for each thread.
+        add_row_broadcast_task,
+        // More args for the function.
+        num_y_cols, std::ref(x.data), std::ref(y.data), std::ref(output.data));
 }
 
 void add_element_wise_task(size_t start, size_t end, std::vector<float> &x_data,
                            const std::vector<float> &y_data) {
+    // Iterate the elements in the given interval.
     for (size_t i = start; i < end; ++i) {
         x_data[i] += y_data[i];
     }
 }
 
+/**
+ * Perform element-wise in-place add on two tensors.
+ *
+ * Since it is an element-wise operation, the shapes are not used. The tensors
+ * can be seen as flattened. So all the add operations are parallelizable.
+ */
 void add_element_wise_(Tensor &x, const Tensor &y) {
-    parallel_for(x.data.size(), add_element_wise_task, std::ref(x.data),
-                 std::ref(y.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        x.data.size(),
+        // The function for each thread.
+        add_element_wise_task,
+        // More args for the function.
+        std::ref(x.data), std::ref(y.data));
 }
 
-// Function to perform element-wise multiply for a subset of rows
 void multiply_task(size_t start, size_t end, const std::vector<float> &x_data,
+                   const std::vector<float> &y_data,
                    std::vector<float> &output_data) {
+    // Iterate the elements in the given interval.
     for (size_t i = start; i < end; ++i) {
-        output_data[i] *= x_data[i];
+        output_data[i] = x_data[i] * y_data[i];
     }
 }
 
+/**
+ * Perform element-wise multiply on two tensors.
+ *
+ * Since it is an element-wise operation, the shapes are not used. The tensors
+ * can be seen as flattened. So all the multiply operations are parallelizable.
+ */
 void multiply(const Tensor &x, const Tensor &y, Tensor &output) {
-    std::copy(x.data.begin(), x.data.end(), output.data.begin());
-
-    parallel_for(output.data.size(), multiply_task, std::ref(y.data),
-                 std::ref(output.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        output.data.size(),
+        // The function for each thread.
+        multiply_task,
+        // More args for the function.
+        std::ref(x.data), std::ref(y.data), std::ref(output.data));
 }
 
-// Function to apply ReLU to a subset of the tensor
-void relu_task(size_t start_index, size_t end_index, std::vector<float> &data) {
-    for (size_t i = start_index; i < end_index; ++i) {
-        data[i] = std::max(0.0f, data[i]);
+void relu_task(size_t start, size_t end, const std::vector<float> &x_data,
+               std::vector<float> &output_data) {
+    // Iterate the elements in the given interval.
+    for (size_t i = start; i < end; ++i) {
+        output_data[i] = std::max(0.0f, x_data[i]);
     }
 }
 
+/**
+ * Perform element-wise relu on the tensor.
+ *
+ * Since it is an element-wise operation, the shapes are not used. The tensor
+ * can be seen as flattened. So all the relu operations are parallelizable.
+ */
 void relu(const Tensor &x, Tensor &output) {
-    std::copy(x.data.begin(), x.data.end(), output.data.begin());
-
-    parallel_for(output.data.size(), relu_task, std::ref(output.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        output.data.size(),
+        // The function for each thread.
+        relu_task,
+        // More args for the function.
+        std::ref(x.data), std::ref(output.data));
 }
 
-// Function to apply Softmax to a subset of rows
-void softmax_task(size_t start_row, size_t end_row, size_t n,
-                  std::vector<float> &data) {
+void softmax_task(size_t start_row, size_t end_row, size_t num_x_cols,
+                  const std::vector<float> &x_data,
+                  std::vector<float> &output_data) {
     for (size_t i = start_row; i < end_row; ++i) {
-        size_t row_start = i * n;
-        size_t row_end = row_start + n;
+        size_t row_start = i * num_x_cols;
+        size_t row_end = row_start + num_x_cols;
         float max_val = -std::numeric_limits<float>::infinity();
 
         // Find the maximum value in the row for numerical stability
         for (size_t j = row_start; j < row_end; ++j) {
-            if (data[j] > max_val) {
-                max_val = data[j];
+            if (x_data[j] > max_val) {
+                max_val = x_data[j];
             }
         }
 
         float sum_exp = 0.0f;
         // Calculate the exponential of each element and the sum of exponentials
         for (size_t j = row_start; j < row_end; ++j) {
-            data[j] =
-                std::exp(data[j] - max_val); // Subtract max_val for stability
-            sum_exp += data[j];
+            output_data[j] =
+                std::exp(x_data[j] - max_val); // Subtract max_val for stability
+            sum_exp += output_data[j];
         }
 
         // Normalize the row by dividing by the sum of exponentials
         for (size_t j = row_start; j < row_end; ++j) {
-            data[j] /= sum_exp;
+            output_data[j] /= sum_exp;
         }
     }
 }
 
+/**
+ * Applies the softmax function to each row of the input tensor independently.
+ *
+ * Softmax converts a vector of raw scores into a probability distribution. For
+ * each row in the input tensor, the softmax function is applied such that the
+ * resulting elements are in the range [0, 1] and sum to 1. This is commonly
+ * used in the output layer of classification neural networks.
+ *
+ * Mathematically, for an input vector x = [x_1, x_2, ..., x_C]
+ * the softmax function produces
+ * an output vector S(x) = [S(x_1), S(x_2), ..., S(x_C)] where each
+ * element is calculated as: S(x_i) = exp(x_i) / sum_{for j=1 to C} exp(x_j)
+ * where C is the number of columns.
+ *
+ * This implementation leverages row-wise parallelization. The rows of the
+ * input tensor `x` are divided into chunks (implicitly by the `parallel_for`
+ * construct), and each chunk is processed concurrently by the `softmax_task`
+ * function. Each invocation of `softmax_task` computes the softmax for a
+ * subset of rows.
+ *
+ * Numerical Stability:
+ * To prevent potential overflow issues when calculating exponentials of large
+ * numbers, the implementation incorporates a standard trick: it subtracts the
+ * maximum value of each row from all elements in that row before
+ * exponentiation. This does not change the result of the softmax function due
+ * to the normalization step but significantly improves numerical stability.
+ */
 void softmax(const Tensor &x, Tensor &output) {
-    size_t m = x.shape[0]; // Number of rows
-    size_t n = x.shape[1]; // Number of columns
+    size_t num_x_rows = x.shape[0];
+    size_t num_x_cols = x.shape[1];
 
-    std::copy(x.data.begin(), x.data.end(), output.data.begin());
-
-    parallel_for(m, softmax_task, n, std::ref(output.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        num_x_rows,
+        // The function for each thread.
+        softmax_task,
+        // More args for the function.
+        num_x_cols, std::ref(x.data), std::ref(output.data));
 }
 
-void log_task(size_t start, size_t end, std::vector<float> &data) {
+void log_task(size_t start, size_t end, const std::vector<float> &x_data,
+              std::vector<float> &output_data) {
+    // Iterate the elements in the given interval.
     for (size_t i = start; i < end; ++i) {
-        data[i] = (data[i] > 1e-8) ? std::log(data[i]) : std::log(1e-8);
+        // If the value is too small (less than 1e-8), we will use log(1e-8)
+        // to avoid log(0), which is -inf.
+        output_data[i] =
+            (x_data[i] > 1e-8) ? std::log(x_data[i]) : std::log(1e-8);
     }
 }
 
+/**
+ * Perform element-wise log on the tensor.
+ *
+ * Since it is an element-wise operation, the shapes are not used. The tensor
+ * can be seen as flattened. So all the log operations are parallelizable.
+ */
 void log(const Tensor &x, Tensor &output) {
-    std::copy(x.data.begin(), x.data.end(), output.data.begin());
-
-    parallel_for(output.data.size(), log_task, std::ref(output.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        output.data.size(),
+        // The function for each thread.
+        log_task,
+        // More args for the function.
+        std::ref(x.data), std::ref(output.data));
 }
 
-// Function to calculate the sum of a subset of the tensor elements
-void sum_task(size_t start_row, size_t end_row, size_t n,
-              const std::vector<float> &data, std::vector<float> &output_data) {
+void sum_task(size_t start_row, size_t end_row, size_t num_x_cols,
+              const std::vector<float> &x_data,
+              std::vector<float> &output_data) {
     for (size_t i = start_row; i < end_row; ++i) {
         output_data[i] = 0.0f;
-        for (size_t j = 0; j < n; ++j) {
-            output_data[i] += data[i * n + j];
+        for (size_t j = 0; j < num_x_cols; ++j) {
+            output_data[i] += x_data[i * num_x_cols + j];
         }
     }
 }
 
+/**
+ * Computes the sum of all elements within a given tensor.
+ *
+ * This implementation utilizes a row-wise parallel reduction strategy. The
+ * input tensor (x) is conceptually divided into chunks of rows (implicitly
+ * managed by the `parallel_for` construct). Each chunk is processed
+ * concurrently by the `sum_task` function, which calculates the sum of
+ * elements within those rows.  The results of these parallel tasks are stored
+ * in an intermediate vector (`partial_sum`), where each element represents the
+ * sum of a corresponding row from the input tensor.
+ *
+ * Finally, the elements of this `partial_sum` vector are aggregated (summed
+ * together) to produce the final total sum of all elements in the original
+ * tensor. This final sum is stored in the first element of the output tensor's
+ * data.
+ *
+ * While this approach is straightforward to implement and demonstrates basic
+ * parallelization, it involves an intermediate reduction step (summing the row
+ * sums). More advanced parallel reduction techniques can directly compute the
+ * global sum with potentially higher efficiency and finer-grained parallelism.
+ *
+ * For instance, a different strategy could involve flattening the tensor and
+ * dividing the resulting linear sequence into independent intervals. Each
+ * interval's sum could be computed in parallel, and these partial sums could
+ * then be combined using a parallel reduction tree to obtain the final result
+ * more efficiently. This alternative avoids the explicit intermediate storage
+ * of row sums and can offer better workload balancing and data locality.
+ */
 void sum(const Tensor &x, Tensor &output) {
-    std::vector<float> partial_sum(x.shape[0]);
-    parallel_for(x.shape[0], sum_task, x.shape[1], std::ref(x.data),
-                 std::ref(partial_sum));
+    size_t num_x_rows = x.shape[0];
+    size_t num_x_cols = x.shape[1];
+
+    // Storing the sum of each row.
+    std::vector<float> partial_sum(num_x_rows);
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        num_x_rows,
+        // The function for each thread.
+        sum_task,
+        // More args for the function.
+        num_x_cols, std::ref(x.data), std::ref(partial_sum));
     output.data[0] =
         std::accumulate(partial_sum.begin(), partial_sum.end(), 0.0f);
 }
@@ -259,7 +402,7 @@ void sum(const Tensor &x, Tensor &output) {
  */
 
 // Function to perform matrix multiplication backward pass for a subset of rows
-void matmul_backward_task_a(size_t start_row, size_t end_row, size_t m,
+void matmul_backward_task_x(size_t start_row, size_t end_row, size_t m,
                             size_t n, size_t k,
                             const std::vector<float> &output_grad_data,
                             const std::vector<float> &x_data,
@@ -276,7 +419,7 @@ void matmul_backward_task_a(size_t start_row, size_t end_row, size_t m,
     }
 }
 
-void matmul_backward_task_b(size_t start_col, size_t end_col, size_t m,
+void matmul_backward_task_y(size_t start_col, size_t end_col, size_t m,
                             size_t n, size_t k,
                             const std::vector<float> &output_grad_data,
                             const std::vector<float> &x_data,
@@ -300,15 +443,15 @@ void matmul_backward(const Tensor &output_grad, const Tensor &x,
     size_t n = y.shape[1];
 
     // Calculate gradients for A and B in parallel
-    parallel_for(m, matmul_backward_task_a, m, n, k, std::ref(output_grad.data),
+    parallel_for(m, matmul_backward_task_x, m, n, k, std::ref(output_grad.data),
                  std::ref(y.data), std::ref(x_grad.data));
 
-    parallel_for(n, matmul_backward_task_b, m, n, k, std::ref(output_grad.data),
+    parallel_for(n, matmul_backward_task_y, m, n, k, std::ref(output_grad.data),
                  std::ref(x.data), std::ref(y_grad.data));
 }
 
 // Function to perform add backward pass for a subset of columns
-void add_row_broadcast_backward_task_b(
+void add_row_broadcast_backward_task_y(
     size_t start_col, size_t end_col, size_t m, size_t n,
     const std::vector<float> &output_grad_data,
     std::vector<float> &y_grad_data) {
@@ -333,12 +476,12 @@ void add_row_broadcast_backward(const Tensor &output_grad, const Tensor &x,
               x_grad.data.begin());
 
     // For y_grad, sum the gradients across each column
-    parallel_for(n, add_row_broadcast_backward_task_b, m, n,
+    parallel_for(n, add_row_broadcast_backward_task_y, m, n,
                  std::ref(output_grad.data), std::ref(y_grad.data));
 }
 
 // Function to perform element-wise multiply backward pass
-void multiply_backward_task_a(size_t start, size_t end,
+void multiply_backward_task_x(size_t start, size_t end,
                               const std::vector<float> &output_grad_data,
                               const std::vector<float> &x_data,
                               std::vector<float> &x_grad_data) {
@@ -347,7 +490,7 @@ void multiply_backward_task_a(size_t start, size_t end,
     }
 }
 
-void multiply_backward_task_b(size_t start, size_t end,
+void multiply_backward_task_y(size_t start, size_t end,
                               const std::vector<float> &output_grad_data,
                               const std::vector<float> &x_data,
                               std::vector<float> &y_grad_data) {
@@ -362,11 +505,11 @@ void multiply_backward(const Tensor &output_grad, const Tensor &x,
     // dL/dA = dL/dOutput * B
     // dL/dB = dL/dOutput * A
 
-    parallel_for(x.data.size(), multiply_backward_task_a,
+    parallel_for(x.data.size(), multiply_backward_task_x,
                  std::ref(output_grad.data), std::ref(y.data),
                  std::ref(x_grad.data));
 
-    parallel_for(y.data.size(), multiply_backward_task_b,
+    parallel_for(y.data.size(), multiply_backward_task_y,
                  std::ref(output_grad.data), std::ref(x.data),
                  std::ref(y_grad.data));
 }
