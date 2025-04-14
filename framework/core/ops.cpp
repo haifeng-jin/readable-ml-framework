@@ -95,6 +95,9 @@ void matmul_task(size_t start_row, size_t end_row, size_t num_x_cols,
  * Performs parallel matrix multiplication of two tensors (matrices) x and y,
  * storing the result in output.
  *
+ * output[i,j] is the inner-product of the ith row of x and the j th column of
+ * y.
+ *
  * This implementation employs a row-wise parallelization strategy. The rows of
  * the first matrix (x) are divided into chunks (implicitly by the parallel_for
  * construct), and each chunk is processed concurrently by invoking the
@@ -401,92 +404,162 @@ void sum(const Tensor &x, Tensor &output) {
  * Backward functions:
  */
 
-// Function to perform matrix multiplication backward pass for a subset of rows
-void matmul_backward_task_x(size_t start_row, size_t end_row, size_t m,
-                            size_t n, size_t k,
+void matmul_backward_task_x(size_t start_row, size_t end_row, size_t num_x_rows,
+                            size_t num_x_cols, size_t num_y_cols,
                             const std::vector<float> &output_grad_data,
-                            const std::vector<float> &x_data,
+                            const std::vector<float> &y_data,
                             std::vector<float> &x_grad_data) {
-    // Computing gradient with respect to A: dL/dA = dL/dC * B^T
+    // d(loss)/d(x) = d(loss)/d(output) * transpose(y)
+    // Iterate the rows of x in the interval.
     for (size_t i = start_row; i < end_row; ++i) {
-        for (size_t j = 0; j < k; ++j) {
-            float sum = 0.0f;
-            for (size_t l = 0; l < n; ++l) {
-                sum += output_grad_data[i * n + l] * x_data[j * n + l];
+        // Iterate the columns of x.
+        for (size_t j = 0; j < num_x_cols; ++j) {
+            // x_grad[i, j] is the inner product of ith row of output_grad and
+            // jth row of y (jth column of y transpose).
+            float inner_product = 0.0f;
+            for (size_t l = 0; l < num_y_cols; ++l) {
+                inner_product += output_grad_data[i * num_y_cols + l] *
+                                 y_data[j * num_y_cols + l];
             }
-            x_grad_data[i * k + j] = sum;
+            x_grad_data[i * num_x_cols + j] = inner_product;
         }
     }
 }
 
-void matmul_backward_task_y(size_t start_col, size_t end_col, size_t m,
-                            size_t n, size_t k,
+void matmul_backward_task_y(size_t start_col, size_t end_col, size_t num_x_rows,
+                            size_t num_x_cols, size_t num_y_cols,
                             const std::vector<float> &output_grad_data,
                             const std::vector<float> &x_data,
                             std::vector<float> &y_grad_data) {
-    // Computing gradient with respect to B: dL/dB = A^T * dL/dC
+    // d(loss)/d(y) = transpose(x) * d(loss)/d(output)
+    // Iterate the columns of y in the interval.
     for (size_t j = start_col; j < end_col; ++j) {
-        for (size_t i = 0; i < k; ++i) {
-            float sum = 0.0f;
-            for (size_t l = 0; l < m; ++l) {
-                sum += x_data[l * k + i] * output_grad_data[l * n + j];
+        // Iterate the columns of x.
+        for (size_t i = 0; i < num_x_cols; ++i) {
+            // y_grad[i, j] is the inner-product of ith column of X (or the ith
+            // row of X transpose) and the jth column of output_grad.
+            float inner_product = 0.0f;
+            for (size_t l = 0; l < num_x_rows; ++l) {
+                inner_product += x_data[l * num_x_cols + i] *
+                                 output_grad_data[l * num_y_cols + j];
             }
-            y_grad_data[i * n + j] = sum;
+            y_grad_data[i * num_y_cols + j] = inner_product;
         }
     }
 }
 
+/**
+ * The backward function of matrix multiplication.
+ *
+ * Given the gradients of the output of the multiplication, we want to get the
+ * gradients of the inputs of the multiplication. Or more formally, given
+ * d(loss)/d(output), where output = matmul(x, y), we want to compute
+ * d(loss)/d(x), and d(loss)/d(y).
+ *
+ * Because loss is a scalar, d(loss)/d(output), d(loss)/d(x), and d(loss)/d(y),
+ * are of the same shape of output, x, and y.
+ *
+ * According to matrix calculus rules:
+ * d(loss)/d(x) = d(loss)/d(output) * transpose(y)
+ * d(loss)/d(y) = transpose(x) * d(loss)/d(output)
+ *
+ * So, at its core, the backward of matmul is basically, two matmul operations.
+ * We implemented it the same way as we did for the matmul operation.
+ */
 void matmul_backward(const Tensor &output_grad, const Tensor &x,
                      const Tensor &y, Tensor &x_grad, Tensor &y_grad) {
-    size_t m = x.shape[0];
-    size_t k = x.shape[1];
-    size_t n = y.shape[1];
+    size_t num_x_rows = x.shape[0];
+    size_t num_x_cols = x.shape[1];
+    size_t num_y_cols = y.shape[1];
 
-    // Calculate gradients for A and B in parallel
-    parallel_for(m, matmul_backward_task_x, m, n, k, std::ref(output_grad.data),
-                 std::ref(y.data), std::ref(x_grad.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        num_x_rows,
+        // The function for each thread.
+        matmul_backward_task_x,
+        // More args for the function.
+        num_x_rows, num_x_cols, num_y_cols, std::ref(output_grad.data),
+        std::ref(y.data), std::ref(x_grad.data));
 
-    parallel_for(n, matmul_backward_task_y, m, n, k, std::ref(output_grad.data),
-                 std::ref(x.data), std::ref(y_grad.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        num_y_cols,
+        // The function for each thread.
+        matmul_backward_task_y,
+        // More args for the function.
+        num_x_rows, num_x_cols, num_y_cols, std::ref(output_grad.data),
+        std::ref(x.data), std::ref(y_grad.data));
 }
 
-// Function to perform add backward pass for a subset of columns
-void add_row_broadcast_backward_task_y(
-    size_t start_col, size_t end_col, size_t m, size_t n,
-    const std::vector<float> &output_grad_data,
-    std::vector<float> &y_grad_data) {
-    // For y_grad, we need to sum the gradients across all rows for each column
-    for (size_t j = start_col; j < end_col; ++j) {
-        float sum = 0.0f;
-        for (size_t i = 0; i < m; ++i) {
-            sum += output_grad_data[i * n + j];
-        }
-        y_grad_data[j] = sum;
+void add_row_broadcast_backward_task_x(
+    size_t start, size_t end, const std::vector<float> &output_grad_data,
+    std::vector<float> &x_grad_data) {
+    for (size_t i = start; i < end; ++i) {
+        // Simply copy output_grad to x_grad.
+        x_grad_data[i] = output_grad_data[i];
     }
 }
 
+void add_row_broadcast_backward_task_y(
+    size_t start, size_t end, size_t num_y_cols,
+    const std::vector<float> &output_grad_data,
+    std::vector<float> &y_grad_data) {
+    for (size_t i = start; i < end; ++i) {
+        // Directly add the output_grad value to the corresponding column of
+        // y_grad. y_grad was initialized to be all zero.
+        y_grad_data[i % num_y_cols] += output_grad_data[i];
+    }
+}
+
+/**
+ * The backward function of adding a vector to each row of the matrix.
+ *
+ * d(output[i,j])/d(x[i,j]) is 1 because output[i,j] = x[i,j] + y[1,j], and if
+ * f(x) = x + C, then f'(x) = 1.
+ *
+ * x_grad[i,j]) = d(loss)/d(x[i,j])
+ *              = ( d(loss)/d(output[i,j]) ) * ( d(output[i,j])/d(x[i,j]) )
+ *              = ( output_grad[i,j]) ) * ( 1 ) = output_grad[i,j]
+ * So, x_grad is just a simple copy of output_grad.
+ *
+ * However, for grad_y, since y is added to each row of x to produce output,
+ * there are multiple gradients to y. When y is added to the ith row of x, the
+ * corresponding gradients is output_grad[i]. We need to sum up the gradients
+ * of all the rows to produce y_grad.
+ *
+ * So, y_grad is to sum output_grad across the rows and along the columns.
+ * Similar to the implementation of the forward function, we can just use a
+ * flattened view of y_grad and output_grad and use % to get the index of the
+ * element.
+ */
 void add_row_broadcast_backward(const Tensor &output_grad, const Tensor &x,
                                 const Tensor &y, Tensor &x_grad,
                                 Tensor &y_grad) {
-    size_t m = x.shape[0];
-    size_t n = x.shape[1];
+    // Copy output_grad to x_grad.
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        x.data.size(),
+        // The function for each thread.
+        add_row_broadcast_backward_task_x,
+        // More args for the function.
+        std::ref(output_grad.data), std::ref(x_grad.data));
 
-    // For x_grad, simply copy the output gradient as it flows through unchanged
-    std::copy(output_grad.data.begin(), output_grad.data.end(),
-              x_grad.data.begin());
-
-    // For y_grad, sum the gradients across each column
-    parallel_for(n, add_row_broadcast_backward_task_y, m, n,
-                 std::ref(output_grad.data), std::ref(y_grad.data));
+    // For y_grad, sum the gradients across the rows and along each column.
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        output_grad.data.size(),
+        // The function for each thread.
+        add_row_broadcast_backward_task_y,
+        // More args for the function.
+        y.data.size(), std::ref(output_grad.data), std::ref(y_grad.data));
 }
 
-// Function to perform element-wise multiply backward pass
 void multiply_backward_task_x(size_t start, size_t end,
                               const std::vector<float> &output_grad_data,
-                              const std::vector<float> &x_data,
+                              const std::vector<float> &y_data,
                               std::vector<float> &x_grad_data) {
     for (size_t i = start; i < end; ++i) {
-        x_grad_data[i] = output_grad_data[i] * x_data[i];
+        x_grad_data[i] = output_grad_data[i] * y_data[i];
     }
 }
 
@@ -499,38 +572,104 @@ void multiply_backward_task_y(size_t start, size_t end,
     }
 }
 
+/**
+ * The backward function of element-size multiply.
+ *
+ * If f(x) = x * C, then f'(x) = C.
+ * So, d(output[i,j])/d(x[i,j]) = y[i,j], where output[i,j] = x[i,j] * y[i,j].
+ * x_grad[i,j] = d(loss)/d(x[i,j])
+ *             = ( d(loss)/d(output[i,j]) ) * ( d(output[i,j])/d(x[i,j]) )
+ *             = output_grad[i,j] * y[i,j]
+ *
+ * Similarly, y_grad[i,j] = output[i,j] * x[i,j]
+ *
+ * So, it is still element-wise multiplication in the backward function. They
+ * can be done in a flattened view of the tensors similar to the forward
+ * function.
+ */
 void multiply_backward(const Tensor &output_grad, const Tensor &x,
                        const Tensor &y, Tensor &x_grad, Tensor &y_grad) {
-    // For element-wise multiplication, gradients are calculated as:
-    // dL/dA = dL/dOutput * B
-    // dL/dB = dL/dOutput * A
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        x.data.size(),
+        // More args for the function.
+        multiply_backward_task_x,
+        // The function for each thread.
+        std::ref(output_grad.data), std::ref(y.data), std::ref(x_grad.data));
 
-    parallel_for(x.data.size(), multiply_backward_task_x,
-                 std::ref(output_grad.data), std::ref(y.data),
-                 std::ref(x_grad.data));
-
-    parallel_for(y.data.size(), multiply_backward_task_y,
-                 std::ref(output_grad.data), std::ref(x.data),
-                 std::ref(y_grad.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        y.data.size(),
+        // The function for each thread.
+        multiply_backward_task_y,
+        // More args for the function.
+        std::ref(output_grad.data), std::ref(x.data), std::ref(y_grad.data));
 }
 
-// Function to apply ReLU backward pass for a subset of the tensor
 void relu_backward_task(size_t start, size_t end,
                         const std::vector<float> &output_grad_data,
                         const std::vector<float> &x_data,
                         std::vector<float> &x_grad_data) {
     for (size_t i = start; i < end; ++i) {
-        // Gradient is output_grad if input was positive, 0 otherwise
+        // x_grad[i,j] = output_grad[i,j] * (0 or 1)
+        // We are using a flattened view of the tensor, so there is no column
+        // index j.
         x_grad_data[i] = x_data[i] > 0 ? output_grad_data[i] : 0.0f;
     }
 }
 
+/**
+ * The backward function of relu.
+ *
+ * relu can be seen as a element-wise multiplication between x and another
+ * matrix y full of 0s and 1s. If x[i,j] is negative, y[i,j] is 0, otherwise, 1.
+ *
+ * We will do exactly the same as the backward function of element-wise
+ * multiplication, except that there is no y_grad needed.
+ */
 void relu_backward(const Tensor &output_grad, const Tensor &x, Tensor &x_grad) {
-    parallel_for(x.data.size(), relu_backward_task, std::ref(output_grad.data),
-                 std::ref(x.data), std::ref(x_grad.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        x.data.size(),
+        // The function for each thread.
+        relu_backward_task,
+        // More args for the function.
+        std::ref(output_grad.data), std::ref(x.data), std::ref(x_grad.data));
 }
 
-// Function to apply Softmax backward pass for a subset of rows
+/**
+ * Computes the backward pass of the softmax function for a subset of rows.
+ *
+ * Quick recap:
+ * If the input is an vector x, and s = softmax(x), then
+ * s[i] = exp(x[i]) / sum(exp(x[j]) for j in range(len(x)))
+ * For numerical stability, we usually normalize x by subtracing max(x) on
+ * every element.
+ *
+ * According to matrix calculus:
+ * x_grad = d(loss)/d(x) = matmul(Jacobian(output) * (d(loss)/d(output))),
+ * where Jacobian is the Jacobian-vector product (JVP).
+ *
+ * How to compute JVP, namely matrix J:
+ *
+ * J[i][j] = s[i]*(1-s[i]) if i == j (the element is on the diagonal)
+ * J[i][j] = -s[i]s[j] if i != j (the element is not on the diagonal)
+ *
+ * We can simplify it to:
+ *
+ * J[i][j] = -s[i]s[j] for all the elements.
+ * J[i][j] += s[i] for all the elements on the diagonal.
+ *
+ * Let's simplify the case by saying x_grad_row is one row of the x_grad
+ * matrix, and output_grad_row is one row of the output_grad matrix.
+ * So, x_grad_row = matmul(JVP, output_grad_row).
+ * x_grad_row[j] = inner product of jth row of JVP and the output_grad_row.
+ * So, we are using one row of JVP at a time.
+ *
+ * With this, we can compute the JVP row by row instead of all at once to save
+ * memory.  With each row, we compute the inner product and save it in the
+ * x_grad.
+ */
 void softmax_backward_task(size_t start_row, size_t end_row, size_t n,
                            const std::vector<float> &output_grad_data,
                            const std::vector<float> &x_data,
@@ -538,6 +677,10 @@ void softmax_backward_task(size_t start_row, size_t end_row, size_t n,
     for (size_t i = start_row; i < end_row; ++i) {
         size_t row_start = i * n;
         float max_val = -std::numeric_limits<float>::infinity();
+
+        // We first compute the softmax forward pass on the fly.
+
+        // Compute the max value in x.
         for (size_t j = 0; j < n; ++j) {
             if (x_data[row_start + j] > max_val) {
                 max_val = x_data[row_start + j];
@@ -551,61 +694,123 @@ void softmax_backward_task(size_t start_row, size_t end_row, size_t n,
                                 max_val); // Subtract max_val for stability
         }
 
-        // For each row, calculate the Jacobian vector product
+        // Now, we have max_val, and sum_exp, which will be used to compute any
+        // s[i] on the fly.
+
+        // Iterate the elements in one row of x_grad.
         for (size_t j = 0; j < n; ++j) {
-            float grad_sum = 0.0f;
+            float inner_product = 0.0f;
+            // Compute s[j]
             float softmax_j =
                 std::exp(x_data[row_start + j] - max_val) / sum_exp;
+            // Iterate the elements in one row of JVP and output_grad.
             for (size_t k = 0; k < n; ++k) {
-                // Jacobian of softmax: J[j,k] = s[j]*(delta[j,k] - s[k])
-                // where delta[j,k] is 1 if j==k, 0 otherwise
+                // Compute s[k]
                 float softmax_k =
                     std::exp(x_data[row_start + k] - max_val) / sum_exp;
+                // Compute J[j][k]
                 float jacobian_jk =
                     softmax_j * ((j == k ? 1.0f : 0.0f) - softmax_k);
-                grad_sum += jacobian_jk * output_grad_data[row_start + k];
+                // Add J[j][k] * output_grad_row[k] to the inner-product.
+                inner_product += jacobian_jk * output_grad_data[row_start + k];
             }
-            x_grad_data[row_start + j] = grad_sum;
+            // Assign the inner-product to x_grad[i][j].
+            x_grad_data[row_start + j] = inner_product;
         }
     }
 }
 
-void softmax_backward(const Tensor &output_grad, const Tensor &output,
+/**
+ * The backward function of softmax.
+ *
+ * Given the gradient of the loss w.r.t. the softmax output (output_grad),
+ * and the input tensor to the softmax (x), computes the gradient of the loss
+ * w.r.t. the input x (x_grad).
+ *
+ * Although it's more efficient to compute this using the already computed
+ * softmax output, this implementation opts to recompute softmax on the fly.
+ * This strategy trades compute for memory — a strategy often used in
+ * large-scale models to reduce memory usage (e.g., when softmax output is not
+ * stored or is expensive to fetch from memory like HBM on GPUs).
+ */
+void softmax_backward(const Tensor &output_grad, const Tensor &x,
                       Tensor &x_grad) {
-    size_t m = output.shape[0]; // Number of rows
-    size_t n = output.shape[1]; // Number of columns
+    size_t num_x_rows = x.shape[0];
+    size_t num_x_cols = x.shape[1];
 
-    parallel_for(m, softmax_backward_task, n, std::ref(output_grad.data),
-                 std::ref(output.data), std::ref(x_grad.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        num_x_rows,
+        // The function for each thread.
+        softmax_backward_task,
+        // More args for the function.
+        num_x_cols, std::ref(output_grad.data), std::ref(x.data),
+        std::ref(x_grad.data));
 }
 
-// Function to apply Log backward pass
 void log_backward_task(size_t start, size_t end,
                        const std::vector<float> &output_grad_data,
                        const std::vector<float> &x_data,
                        std::vector<float> &x_grad_data) {
     for (size_t i = start; i < end; ++i) {
-        // Gradient of log(x) is 1/x, with a minimum value threshold
+        // Ensure not divided by zero.
         float x = std::max(x_data[i], 1e-8f);
         x_grad_data[i] = output_grad_data[i] / x;
     }
 }
 
+/**
+ * The backward function for element-wise log.
+ *
+ * If f(x) = log(x), then f'(x) = 1/x.
+ * So, d(output[i,j])/d(x[i,j]) = 1/x[i,j], where output[i,j] = log(x[i,j]).
+ * x_grad[i,j] = d(loss)/d(x[i,j])
+ *             = ( d(loss)/d(output[i,j]) ) * ( d(output[i,j])/d(x[i,j]) )
+ *             = output_grad[i,j] / x[i,j]
+ *
+ * Since it is an element-wise operation, we can use the flattened views of the
+ * tensors. We don't need to tell the row and column indices.
+ */
 void log_backward(const Tensor &output_grad, const Tensor &x, Tensor &x_grad) {
-    parallel_for(x.data.size(), log_backward_task, std::ref(output_grad.data),
-                 std::ref(x.data), std::ref(x_grad.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        x.data.size(),
+        // The function for each thread.
+        log_backward_task,
+        // More args for the function.
+        std::ref(output_grad.data), std::ref(x.data), std::ref(x_grad.data));
 }
 
-void sum_backward_task(size_t start, size_t end, float value,
+void sum_backward_task(size_t start, size_t end, float output_grad_scalar,
                        std::vector<float> &x_grad_data) {
     for (size_t i = start; i < end; i++) {
-        x_grad_data[i] = value;
+        x_grad_data[i] = output_grad_scalar;
     }
 }
 
+/**
+ * The backward function of sum all elements.
+ *
+ * If f(x) = x + C, then f'(x) = 1.
+ * So, d(sum)/d(x[i,j]) = 1, where sum = x[i,j] + (all other elements).
+ * x_grad[i,j] = d(loss)/d(x[i,j])
+ *             = ( d(loss)/d(sum) ) * ( d(sum)/d(x[i,j]) )
+ *             = output_grad * 1 = output_grad
+ * Note that the output_grad and sum are two scalars.
+ *
+ * So, we can just fill x_grad with the output_grad scalar.
+ *
+ * Since there is no need to know the row and column indices during filling the
+ * value, we use the flattened view of the tensor.
+ */
 void sum_backward(const Tensor &output_grad, const Tensor &x, Tensor &x_grad) {
-    parallel_for(x.data.size(), sum_backward_task, output_grad.data[0],
-                 std::ref(x_grad.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        x.data.size(),
+        // The function for each thread.
+        sum_backward_task,
+        // More args for the function.
+        output_grad.data[0], std::ref(x_grad.data));
 }
 
 }; // namespace ops

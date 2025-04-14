@@ -45,7 +45,7 @@ public:
      *
      * The data vector will be initialized with a size corresponding to the
      * total number of elements in the tensor (product of the shape
-     * dimensions), but the values will be uninitialized.
+     * dimensions), but the values will be initialized to 0.0f.
      *
      * @param shape: A vector of size_t representing the desired shape of the
      * tensor. Must contain at least one element (rank >= 1). When calling from

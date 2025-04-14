@@ -27,8 +27,8 @@ class Tensor:
         Args:
             shape: Tuple. The shape of the tensor.
             data: Optional `numpy.ndarray`. Initial data for the tensor. If
-                None, the tensor will be initialized with uninitialized values.
-                If provided, the dtype must be float32.
+                None, the tensor will be initialized to 0.0. If provided, the
+                dtype must be float32.
         """
         self.shape = tuple(shape)
         self.data = (
