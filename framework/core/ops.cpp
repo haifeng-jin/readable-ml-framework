@@ -12,7 +12,7 @@ namespace py = pybind11;
 // Nest all the operation functions under the ops to avoid naming conflicts.
 namespace ops {
 
-/*
+/**
  * @brief This function run tasks in parallel with multi-threading.
  *
  * @param total_work: The number of tasks that could run in parallel.
@@ -120,40 +120,69 @@ void matmul(const Tensor &x, const Tensor &y, Tensor &output) {
     size_t x_col = x.shape[1];
     size_t y_col = y.shape[1];
 
-    parallel_for(x_row, matmul_task, x_col, y_col, std::ref(x.data),
-                 std::ref(y.data), std::ref(output.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        x_row,
+        // The function for each thread.
+        matmul_task,
+        // More args for the function.
+        x_col, y_col, std::ref(x.data), std::ref(y.data),
+        std::ref(output.data));
 }
 
-// Function to perform row-wise addition for a subset of rows
-void add_row_broadcast_task(size_t start_row, size_t end_row, size_t n,
+void add_row_broadcast_task(size_t start_row, size_t end_row, size_t x_col,
                             const std::vector<float> &x_data,
                             const std::vector<float> &y_data,
                             std::vector<float> &output_data) {
+    // Iterate the rows of x in the given interval.
     for (size_t i = start_row; i < end_row; ++i) {
-        for (size_t j = 0; j < n; ++j) {
-            output_data[i * n + j] = x_data[i * n + j] + y_data[j];
+        // Iterate all the elements in the current row.
+        for (size_t j = 0; j < x_col; ++j) {
+            // In their original index: output[i, j] = x[i, j] + y[1, j]
+            output_data[i * x_col + j] = x_data[i * x_col + j] + y_data[j];
         }
     }
 }
 
+/**
+ * Add vector y to matrix x by broadcasting the vector to all the rows.
+ */
 void add_row_broadcast(const Tensor &x, const Tensor &y, Tensor &output) {
-    size_t m = x.shape[0];
-    size_t n = x.shape[1];
+    size_t x_row = x.shape[0];
+    size_t x_col = x.shape[1];
 
-    parallel_for(m, add_row_broadcast_task, n, std::ref(x.data),
-                 std::ref(y.data), std::ref(output.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        x_row,
+        // The function for each thread.
+        add_row_broadcast_task,
+        // More args for the function.
+        x_col, std::ref(x.data), std::ref(y.data), std::ref(output.data));
 }
 
 void add_element_wise_task(size_t start, size_t end, std::vector<float> &x_data,
                            const std::vector<float> &y_data) {
+    // Iterate the given element range.
     for (size_t i = start; i < end; ++i) {
         x_data[i] += y_data[i];
     }
 }
 
+/**
+ * Perform element-wise in-place add on two tensors.
+ *
+ * Since it is an element-wise operation, the shapes are not used.
+ * The tensors can be seen as flattened. All the operations of adding two
+ * floats in this function are parallelizable.
+ */
 void add_element_wise_(Tensor &x, const Tensor &y) {
-    parallel_for(x.data.size(), add_element_wise_task, std::ref(x.data),
-                 std::ref(y.data));
+    parallel_for(
+        // Number of tasks that are parallelizable.
+        x.data.size(),
+        // The function for each thread.
+        add_element_wise_task,
+        // More args for the function.
+        std::ref(x.data), std::ref(y.data));
 }
 
 // Function to perform element-wise multiply for a subset of rows
