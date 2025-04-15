@@ -13,6 +13,35 @@ implement a simple neural network to solve classification problem without any
 extra features. You can easily understand all the basics of a ML framework by
 reading it.
 
+Here is a basic example of what it can do and only what it can do:
+
+```py
+import numpy as np
+
+from framework import ops
+from framework.tensor import Tensor
+
+# Create input tensors
+x = Tensor.from_numpy(np.array([[2.0, 3.0]], dtype=np.float32))  # shape (1, 2)
+y = Tensor.from_numpy(
+    np.array([[4.0], [5.0]], dtype=np.float32)
+)  # shape (2, 1)
+
+# Perform matrix multiplication
+z = ops.matmul(x, y)  # Expected: [[2*4 + 3*5]] = [[23.0]]
+s = ops.sum(z)
+
+# Trigger backward propagation
+s.backward()
+
+# Print gradients
+print("x.grad:", x.grad.numpy())  # Expected: [[4.0, 5.0]]
+print("y.grad:", y.grad.numpy())  # Expected: [[2.0], [3.0]]
+```
+
+Also, feel free to check [a full classification 
+  example](https://github.com/haifeng-jin/readable-ml-framework/blob/main/examples/classification_example_with_readable_ml_framework.ipynb).
+
 ## Disclaimer
 
 This repo is mainly for educational purposes only and no where near a
@@ -24,16 +53,14 @@ operators in C++ and exposed with Python APIs. The operators are implemented
 with multi-threading for speed optimization.
 
 The code is structured in a way that is easiest for people to read. All complex
-features, including sanity checks for function arguments, are not implemented,
-which we will talk about later.
+features, like sanity checks for function arguments, GPU support, distributed
+training, data types of different precisions, asynchronous dispatch, compilers,
+are not implemented.
 
 ## How to use
 
 You can read the codebase in the following steps:
 
-* Read [the
-  example](https://github.com/haifeng-jin/readable-ml-framework/blob/main/examples/classification_example_with_readable_ml_framework.ipynb)
-  to understand what features did we implement.
 * Read the Python code in
   [`framework/tensor.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/main/framework/tensor.py)
   to understand how `Tensor` works.
