@@ -39,7 +39,7 @@ print("x.grad:", x.grad.numpy())  # Expected: [[4.0, 5.0]]
 print("y.grad:", y.grad.numpy())  # Expected: [[2.0], [3.0]]
 ```
 
-Also, feel free to check [a full classification 
+Also, feel free to check [the full classification 
   example](https://github.com/haifeng-jin/readable-ml-framework/blob/main/examples/classification_example_with_readable_ml_framework.ipynb).
 
 ## Disclaimer
