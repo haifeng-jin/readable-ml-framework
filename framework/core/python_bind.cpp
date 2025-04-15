@@ -18,6 +18,10 @@ namespace py = pybind11;
  * An exception is when binding the constructors of a class, we only specify
  * the parameter types. Pybind11 will find the constructor on its own.
  *
+ * Note that none of the function names or class names needs to be the same
+ * between the Python importable object and the C++ one. You can always define
+ * a different name for the functions and classes when bind them in Python.
+ *
  * @param core: The name of the Python module.
  * @param m: The module object to bind classes and functions to.
  */
