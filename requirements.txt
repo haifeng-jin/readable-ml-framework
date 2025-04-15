@@ -3,4 +3,4 @@ numpy
 pytest
 flake8
 isort
-black
+black[jupyter]
