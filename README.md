@@ -57,7 +57,7 @@ with multi-threading for speed optimization.
 The code is structured in a way that is easiest for people to read. All complex
 features, like sanity checks for function arguments, GPU support, distributed
 training, data types of different precisions, asynchronous dispatch, compilers,
-are not implemented.
+model serialization, model export, are not implemented.
 
 ## How to use
 
