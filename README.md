@@ -2,16 +2,18 @@
 
 A machine learning framework with readable source code.
 
-Machine learning frameworks are intimidating. The codebases are huge and
-complex. It is almost impossible to pick up the source code and read to figure
-out what is going on inside, when you write a machine learning model using it.
+Machine learning frameworks can be intimidating. Their codebases are often
+massive and complex, making it nearly impossible to simply read through the
+source code to understand what's happening when you build a model with them.
 
-Fortunately, you have the "Readable ML Framework", which only contains a
-~800 lines of actual code in Python and C++ altogether. The code are well
-documented and end up with ~2000 lines of code. It is just good enough to
-implement a simple neural network to solve classification problem without any
-extra features. You can easily understand all the basics of a ML framework by
-reading it.
+Fortunately, there's the Readable ML Framework, which contains only about 800
+lines of actual code (not counting comments) written in Python and C++. The
+code is thoroughly documented, bringing the total to around 2,000 lines.
+
+The features of the library are just enough to implement a simple neural
+network for a basic classification problem without any unnecessary extras. By
+reading through it, you can easily grasp the fundamentals of how an ML
+framework works.
 
 Here is a basic example of what it can do and only what it can do:
 
