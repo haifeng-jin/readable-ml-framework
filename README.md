@@ -26,20 +26,18 @@ The code is structured in a way that is easiest for people to read. All complex
 features, including sanity checks for function arguments, are not implemented,
 which we will talk about later.
 
-## Install
+## Install for development
+
+I used a conda environment for easier setup.
+
+Install the dependencies:
 
 ```
 conda install -c conda-forge cxx-compiler clang-format
+pip install -r requirements.txt
 ```
 
+Install the project for dev mode:
 ```
-pip install -r requirements.txt
 pip install -e .
 ```
-
-## Features not implemented
-
-Asychronous dispatch.
-CUDA backend.
-Compilers.
-Distributed computing.
