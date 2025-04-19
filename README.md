@@ -42,7 +42,7 @@ print("y.grad:", y.grad.numpy())  # Expected: [[2.0], [3.0]]
 ```
 
 Also, feel free to check [the full classification 
-  example](https://github.com/haifeng-jin/readable-ml-framework/blob/main/examples/classification_example_with_readable_ml_framework.ipynb).
+  example](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/examples/classification_example_with_readable_ml_framework.ipynb).
 
 ## Disclaimer
 
@@ -64,29 +64,29 @@ model serialization, model export, are not implemented.
 You can read the codebase in the following steps:
 
 * Read the Python code in
-  [`framework/tensor.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/main/framework/tensor.py)
+  [`framework/tensor.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/framework/tensor.py)
   to understand how `Tensor` works.
 * Read the
-  [`setup.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/main/setup.py),
-  [`framework/core/python_bind.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/main/framework/core/python_bind.cpp)
+  [`setup.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/setup.py),
+  [`framework/core/python_bind.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/framework/core/python_bind.cpp)
   to understand how the Python and C++ interfacing works.
 * Read
-  [`framework/core/tensor.h`](https://github.com/haifeng-jin/readable-ml-framework/blob/main/framework/core/tensor.h)
+  [`framework/core/tensor.h`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/framework/core/tensor.h)
   and
-  [`framework/core/tensor.cpp`](https://github.com/haifeng-jin/readable-ml-framework/blob/main/framework/core/tensor.cpp)
+  [`framework/core/tensor.cpp`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/framework/core/tensor.cpp)
   to understand how the underlying C++ implementation of the `Tensor` works.
 * Read
-  [`framework/core/ops.h`](https://github.com/haifeng-jin/readable-ml-framework/blob/main/framework/core/ops.h)
+  [`framework/core/ops.h`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/framework/core/ops.h)
   and
-  [`framework/core/ops.cpp`](https://github.com/haifeng-jin/readable-ml-framework/blob/main/framework/core/ops.cpp)
+  [`framework/core/ops.cpp`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/framework/core/ops.cpp)
   to understand how the tensor operations are implemented in C++. This is the
   hardest part of the codebase. Feel free to skip all the details.
-* Read the Python files under [`framework/ops/forward.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/main/framework/ops/forward.py) and
-  [`framework/ops/backward.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/main/framework/ops/backward.py) understand how the C++ ops are wrapped in Python.
+* Read the Python files under [`framework/ops/forward.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/framework/ops/forward.py) and
+  [`framework/ops/backward.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/framework/ops/backward.py) understand how the C++ ops are wrapped in Python.
 * Read
-  [`framework/ops/op_record.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/main/framework/ops/op_record.py)
+  [`framework/ops/op_record.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/framework/ops/op_record.py)
   and
-  [`framework/autograd.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/main/framework/autograd.py)
+  [`framework/autograd.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/framework/autograd.py)
   to understand how do we trace the ops and do backward propagation to compute
   the gradients.
 
