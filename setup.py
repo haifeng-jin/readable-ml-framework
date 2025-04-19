@@ -26,4 +26,6 @@ setuptools.setup(
     ext_modules=ext_modules,
     # Let setuptools find the Python package in the current dir.
     packages=setuptools.find_packages(),
+    # Specify the version of the package.
+    version="0.0.1",
 )
