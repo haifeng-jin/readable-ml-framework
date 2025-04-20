@@ -42,7 +42,7 @@ print("y.grad:", y.grad.numpy())  # Expected: [[2.0], [3.0]]
 ```
 
 Also, feel free to check [the full classification 
-  example](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/examples/classification_example_with_readable_ml_framework.ipynb).
+  example](https://github.com/haifeng-jin/readable-ml-framework/blob/main/examples/classification_example_with_readable_ml_framework.ipynb).
 
 ## Disclaimer
 
