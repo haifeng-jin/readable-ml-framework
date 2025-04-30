@@ -2,20 +2,21 @@
 
 A machine learning framework with readable source code.
 
+Check out this [blog post](https://haifengjin.com/build-an-ml-framework-from-scratch/) for a detailed introduction.
+
 Machine learning frameworks can be intimidating. Their codebases are often
-massive and complex, making it nearly impossible to simply read through the
-source code to understand what's happening when you build a model with them.
+massive and complex, making source code nearly impossible to read.
 
 Fortunately, there's the Readable ML Framework, which contains only about 800
 lines of actual code (not counting comments) written in Python and C++. The
 code is thoroughly documented, bringing the total to around 2,000 lines.
 
-The features of the library are just enough to implement a simple neural
-network for a basic classification problem without any unnecessary extras. By
+The features of this framework are just enough to implement a simple neural
+network for a basic classification problem. By
 reading through it, you can easily grasp the fundamentals of how an ML
 framework works.
 
-Here is a basic example of what it can do and only what it can do:
+Here is a basic example of what it can do:
 
 ```py
 import numpy as np
@@ -46,18 +47,18 @@ Also, feel free to check [the full classification
 
 ## Disclaimer
 
-This repo is mainly for educational purposes only and no where near a
-feature-complete ML framework. It is for people, who wants to learn the
+This repo is mainly for educational purposes only and nowhere near a
+feature-complete ML framework. It is for people, who want to learn the
 internal mechanisms of ML frameworks, like TensorFlow, PyTorch, and JAX.
 
 It implements the eager mode of execution with the tensor data structure and
-operators in C++ and exposed with Python APIs. The operators are implemented
+operators in C++ and exposes them in Python APIs. The operators are implemented
 with multi-threading for speed optimization.
 
 The code is structured in a way that is easiest for people to read. All complex
 features, like sanity checks for function arguments, GPU support, distributed
 training, data types of different precisions, asynchronous dispatch, compilers,
-model serialization, model export, are not implemented.
+model serialization, and model export, are not implemented.
 
 ## How to use
 
@@ -87,7 +88,7 @@ You can read the codebase in the following steps:
   [`framework/ops/op_record.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/framework/ops/op_record.py)
   and
   [`framework/autograd.py`](https://github.com/haifeng-jin/readable-ml-framework/blob/v0.0.1/framework/autograd.py)
-  to understand how do we trace the ops and do backward propagation to compute
+  to understand how we trace the ops and do backward propagation to compute
   the gradients.
 
 ## Install for development
